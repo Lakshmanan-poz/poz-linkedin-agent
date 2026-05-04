@@ -1,14 +1,20 @@
 # POZ Agent — Content Generation Workflow
 
-**Last updated:** 2026-05-02
-**Status:** Verified against live code. Content-calendar uses X trends only (not web research). 18 skills total.
+**Last updated:** 2026-05-04
+**Status:** Verified against live code. RAG file upload added. PDF extraction via pdfjs-dist. Login page redesigned. 18 skills total.
 
 ---
 
 ## The Correct Workflow (What the System Does)
 
 ```
-USER GIVES TOPIC
+USER GIVES TOPIC  ──OR──  USER UPLOADS FILE(S)
+      │                          │
+      │                          ▼
+      │               RAG PATH (priority — runs before all other checks)
+      │               Upload → /api/agents/upload → pdfjs-dist extraction
+      │               → stored in agent_outputs (agent_id="rag")
+      │               → ask questions → /api/agents/rag → GPT-4o answers
       │
       ▼
 STEP 1 — Fetch X/Twitter Trends (Grok, last 7 days)
@@ -34,11 +40,22 @@ STEP 2 — User Selects Intent
 ## Full Request Processing Pipeline (System Architecture)
 
 ```
-USER INPUT (Prompt / Topic / Question)
+USER INPUT (Prompt / Topic / Question / File Upload)
                 ↓
         AgentCatalog Interface
         (src/app/agent-catalog/page.tsx)
                 ↓
+     ┌──────────────────────────────────────────────────────┐
+     │  PRIORITY CHECK 1 — Files uploading?                │
+     │  → warn user to wait, return early                  │
+     │                                                      │
+     │  PRIORITY CHECK 2 — Ready documents attached?       │
+     │  readyDocIds.length > 0                             │
+     │  → POST /api/agents/rag (BYPASSES all other routing)│
+     │  → GPT-4o answers from document content only        │
+     │  → return (no intent detection, no skills)          │
+     └──────────────────────────────────────────────────────┘
+                ↓ (no docs attached)
      Intent Detection Layer  —  POST /api/agents/chat  (temperature: 0.3)
         ├── General Chat          → reply (chat bubble, no generation)
         ├── Trend Request         → POST /api/agents/trending (Grok X search)
@@ -54,7 +71,7 @@ USER INPUT (Prompt / Topic / Question)
         Tool Execution Layer  (src/lib/agents/generate.ts)
         ├── OpenAI Chat           → General Reply (no skill)
         ├── X API / Grok          → X/Twitter Trends (12+ sources, last 7 days)
-        ├── Web Search            → Grok web_search → OpenAI Responses API (fallback)
+        ├── Web Search            → Grok live_search → OpenAI Responses API (fallback)
         └── Skills Engine         → generateSkillOutput({ skillId, inputs })
                 ↓
         Data Processing
@@ -83,7 +100,87 @@ USER INPUT (Prompt / Topic / Question)
         ├── TrendCard             → _xTrends sources + signals
         ├── WebSourcesCard        → _webSources[]
         ├── Slide audit cards     → refined.slides[] (Fixed / Unchanged)
-        └── publishReady gate     → publish indicator
+        ├── publishReady gate     → publish indicator
+        └── RAG answer bubble     → plain text from GPT-4o + doc context
+```
+
+---
+
+## Path R — RAG Document Q&A (Priority Path)
+
+When one or more files are attached and ready, **every** user message is answered from the documents — no intent detection, no skill routing.
+
+### Step 1 — File Upload
+File: `src/app/agent-catalog/page.tsx` → `handleFileUpload()`
+
+```
+User selects file(s)  (1–5 files, max 5MB each)
+  → Placeholder chips shown immediately (animate-pulse, "uploading…")
+  → POST /api/agents/upload  multipart/form-data { files[], session_id }
+  → Placeholders replaced with real doc IDs + blue ✓ chip
+  → Error chip (red) shown if extraction fails
+```
+
+Accepted formats: `.pdf  .docx  .doc  .txt  .md  .csv  .json  .js  .ts  .html  .xml  .yaml  .yml`
+
+---
+
+### Step 2 — Text Extraction
+File: `src/app/api/agents/upload/route.ts`
+
+| Format | Method |
+|---|---|
+| `.pdf` | `pdfjs-dist/legacy/build/pdf.mjs` — page-by-page `getTextContent()`, Node.js compatible, no browser APIs |
+| `.docx` / `.doc` | `mammoth.extractRawText({ buffer })` |
+| `.txt`, `.md`, `.csv`, `.json`, code files | `file.text()` direct read |
+
+```
+rawText → slice(0, 60 000 chars) → storeDocument()
+  → INSERT INTO agent_outputs (agent_id="rag", skill_id="doc-{session_id}",
+      title=filename, input_params={filename,file_type,session_id},
+      output_json={content})
+  → returns { id: number, filename, chars }
+```
+
+No new table required — documents are stored in the existing `agent_outputs` table with `agent_id = "rag"` as identifier.
+
+---
+
+### Step 3 — RAG Query
+File: `src/app/api/agents/rag/route.ts`
+
+```
+POST /api/agents/rag
+Body: { question: string, doc_ids: number[], history?: [{role, content}] }
+
+→ getDocumentsByIds(doc_ids)   — SELECT FROM agent_outputs WHERE agent_id="rag" AND id IN (...)
+→ retrieveRelevantChunks(content, question, 12000)
+      · Split on double newlines (well-formatted text)
+      · If < 5 paragraphs → group single-newline lines into 8-line chunks (PDF style)
+      · Score each chunk by keyword overlap with question
+      · Return top chunks up to 12 000 chars per document
+→ Build system prompt with full document context
+→ GPT-4o  temperature: 0.3  max_tokens: 2000
+→ Returns { answer: string, doc_count: number }
+```
+
+---
+
+### Step 4 — RAG Routing in UI
+File: `src/app/agent-catalog/page.tsx` → `handleSend()`
+
+```
+Priority order (checked BEFORE trend regex or intent detection):
+
+1. uploadingCount > 0  AND  readyDocIds.length === 0
+   → add agent message: "Files still uploading — please wait"
+   → return
+
+2. readyDocIds.length > 0
+   → POST /api/agents/rag  with { question: raw, doc_ids, history }
+   → show "Searching N file(s)…" loading bubble
+   → replace with GPT answer
+   → return   ← no further routing
 ```
 
 ---
@@ -448,6 +545,29 @@ Signal:  Immediate tension, no warm-up
 
 ---
 
+## Changes — Session 2 (2026-05-04)
+
+| # | Area | Change |
+|---|---|---|
+| 1 | RAG | New feature: file upload (1–5 files) + document Q&A in Agent Catalog |
+| 2 | RAG | PDF extraction rewritten to use `pdfjs-dist/legacy` (Node.js compatible, no DOMMatrix/canvas) |
+| 3 | RAG | Documents stored in existing `agent_outputs` table (`agent_id="rag"`) — no new table needed |
+| 4 | RAG | `retrieveRelevantChunks` improved: handles single-newline PDF text, 12k char context window |
+| 5 | RAG | RAG routing moved to TOP of `handleSend` — fires before trend regex and intent detection |
+| 6 | RAG | Guard added: if files still uploading, warn user to wait before sending question |
+| 7 | Web Research | Fixed `[web-research/grok] HTTP 422` — switched from `/v1/responses` + `web_search` to `/v1/chat/completions` + `live_search` |
+| 8 | Agent Catalog | Copy buttons added to all content refiner outputs (per-slide, caption, hashtags, Copy All) |
+| 9 | Agent Catalog | Score banner: replaced "Needs refinement" warning + verdict text with inline Score Details (3-hat verdicts + finalNote) |
+| 10 | Posts / New | Replaced 4-card post-type grid with 2-button selector: Single Page / Carousel |
+| 11 | Posts / New | Added "Send to Review" button to manual write, carousel write, and AI preview forms |
+| 12 | Posts / New | Fixed state-reset bug — entering manual/AI mode now clears all previous form state |
+| 13 | Posts / New | Fixed carousel write form — added per-slide title + body builder, caption, hashtags |
+| 14 | Login | Full redesign: split-panel layout, POZ brand blue `#00AAEC`, show/hide password, gradient button |
+| 15 | Login | Added POZ company logo SVG (`public/poz-logo.svg`) — two overlapping rounded squares with evenodd transparent intersection |
+| 16 | Config | `next.config.ts`: added `turbopack: {}` (Next.js 16 default) + `serverExternalPackages: ["pdfjs-dist"]` |
+
+---
+
 ## Bugs Fixed in This Session
 
 | # | File | Problem | Fix |
@@ -514,12 +634,19 @@ Signal:  Immediate tension, no warm-up
 | `src/lib/agents/generate.ts` | Core generation engine — all 18 skills, X trends, web research, brand injection |
 | `src/lib/agents/types.ts` | SkillId, AgentId, AgentOutput type definitions |
 | `src/lib/ai/generate.ts` | Legacy generation path — posts/new page |
+| `src/lib/db/documents.ts` | RAG document storage — storeDocument, getDocumentsByIds, retrieveRelevantChunks |
 | `src/app/api/agents/generate/route.ts` | Agent generation API (auth-protected) |
 | `src/app/api/agents/chat/route.ts` | Intent router — classifies user message into action |
 | `src/app/api/agents/trending/route.ts` | Standalone Grok X trend search |
+| `src/app/api/agents/upload/route.ts` | RAG file upload — PDF/DOCX/text extraction + DB storage |
+| `src/app/api/agents/rag/route.ts` | RAG Q&A — fetch docs, chunk retrieval, GPT-4o answer |
 | `src/app/api/generate/route.ts` | Legacy generation API (auth-protected) |
-| `src/app/agent-catalog/page.tsx` | Main chat UI — intent → dispatch → render |
-| `src/app/posts/new/page.tsx` | Legacy create post UI |
+| `src/app/agent-catalog/page.tsx` | Main chat UI — RAG priority + intent → dispatch → render |
+| `src/app/posts/new/page.tsx` | Create post UI — Single Page / Carousel, Send to Review |
+| `src/app/login/page.tsx` | Login page — split-panel layout, POZ brand |
+| `public/poz-logo.svg` | POZ company logo — two overlapping rounded squares, evenodd fill |
+| `next.config.ts` | Next.js config — turbopack, serverExternalPackages (pdfjs-dist) |
+| `migration.sql` | Full DB schema including agent_catalog_chat_history + messages tables |
 | `WORKFLOW.md` | This document |
 
 ---
@@ -528,9 +655,13 @@ Signal:  Immediate tension, no warm-up
 
 | Variable | Used by | Purpose |
 |---|---|---|
-| `OPENAI_API_KEY` | agents/generate.ts, ai/generate.ts | Content generation (GPT-4o) |
-| `XAI_API_KEY` | agents/generate.ts | Grok X trend search + Grok web research |
+| `OPENAI_API_KEY` | agents/generate.ts, ai/generate.ts, agents/rag/route.ts | Content generation + RAG answers (GPT-4o) |
+| `XAI_API_KEY` | agents/generate.ts | Grok X trend search + Grok live_search web research |
 | `XAI_MODEL` | agents/generate.ts | Grok model override (default: `grok-3-fast`) |
+| `NEXT_PUBLIC_SUPABASE_URL` | src/lib/db/index.ts | Supabase project URL |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | src/lib/db/index.ts | Supabase anon key (client) |
+| `SUPABASE_SERVICE_ROLE_KEY` | src/lib/db/index.ts | Supabase service role key (admin — bypasses RLS) |
+| `JWT_SECRET` | src/lib/auth.ts | JWT signing/verification for session cookies |
 | `COOKIE_NAME` | all API routes | JWT cookie name for auth verification |
 
 ### DB Settings (`app_settings` table):
