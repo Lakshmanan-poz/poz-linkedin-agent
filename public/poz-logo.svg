@@ -1,0 +1,13 @@
+<svg viewBox="0 0 110 110" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!--
+    Two rounded squares offset diagonally.
+    fill-rule="evenodd" makes the overlapping intersection transparent,
+    matching the real POZ logo where the hole shows the background.
+  -->
+  <path
+    fill="#00AAEC"
+    fill-rule="evenodd"
+    d="M15,28 H67 Q82,28 82,43 V95 Q82,110 67,110 H15 Q0,110 0,95 V43 Q0,28 15,28 Z
+       M43,0 H95 Q110,0 110,15 V67 Q110,82 95,82 H43 Q28,82 28,67 V15 Q28,0 43,0 Z"
+  />
+</svg>
