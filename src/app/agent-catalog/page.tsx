@@ -192,13 +192,33 @@ function HistoryPanel({
   onDelete: (sessionId: string) => void;
 }) {
   const [search, setSearch] = React.useState("");
+  const scrollRef = React.useRef<HTMLDivElement>(null);
+  const [canScrollMore, setCanScrollMore] = React.useState(false);
+  const [isScrolled, setIsScrolled] = React.useState(false);
+
+  function checkScroll() {
+    const el = scrollRef.current;
+    if (!el) return;
+    setIsScrolled(el.scrollTop > 8);
+    setCanScrollMore(el.scrollHeight - el.scrollTop - el.clientHeight > 24);
+  }
+
+  React.useEffect(() => {
+    // Re-check after render when sessions change
+    const t = setTimeout(checkScroll, 80);
+    return () => clearTimeout(t);
+  }, [sessions, search]);
+
+  function scrollToBottom() {
+    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
+  }
 
   function fmtDate(iso: string) {
     const d = new Date(iso);
     const now = new Date();
     const diff = now.getTime() - d.getTime();
-    if (diff < 60_000)    return "just now";
-    if (diff < 3_600_000) return `${Math.floor(diff / 60_000)}m ago`;
+    if (diff < 60_000)     return "just now";
+    if (diff < 3_600_000)  return `${Math.floor(diff / 60_000)}m ago`;
     if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)}h ago`;
     return d.toLocaleDateString("en-GB", { day: "2-digit", month: "short" });
   }
@@ -207,7 +227,6 @@ function HistoryPanel({
     ? sessions.filter((s) => (s.title ?? "").toLowerCase().includes(search.toLowerCase()))
     : sessions;
 
-  // Group sessions by recency
   const groups: { label: string; items: ChatSession[] }[] = [];
   const now = Date.now();
   const today: ChatSession[] = [], yesterday: ChatSession[] = [], week: ChatSession[] = [], older: ChatSession[] = [];
@@ -218,10 +237,10 @@ function HistoryPanel({
     else if (diff < 604_800_000) week.push(s);
     else                          older.push(s);
   });
-  if (today.length)     groups.push({ label: "Today",      items: today });
-  if (yesterday.length) groups.push({ label: "Yesterday",  items: yesterday });
-  if (week.length)      groups.push({ label: "This week",  items: week });
-  if (older.length)     groups.push({ label: "Older",      items: older });
+  if (today.length)     groups.push({ label: "Today",     items: today });
+  if (yesterday.length) groups.push({ label: "Yesterday", items: yesterday });
+  if (week.length)      groups.push({ label: "This week", items: week });
+  if (older.length)     groups.push({ label: "Older",     items: older });
 
   return (
     <div className="w-[260px] shrink-0 border-r border-border bg-background flex flex-col h-full overflow-hidden">
@@ -245,62 +264,108 @@ function HistoryPanel({
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search conversations…"
-            className="w-full pl-7 pr-3 py-1.5 text-xs rounded-lg bg-muted border border-border outline-none focus:ring-1 focus:ring-primary/30 placeholder:text-muted-foreground/50"
+            className="w-full pl-7 pr-8 py-1.5 text-xs rounded-lg bg-muted border border-border outline-none focus:ring-1 focus:ring-primary/30 placeholder:text-muted-foreground/50"
           />
+          {search && (
+            <button
+              onClick={() => setSearch("")}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground/50 hover:text-foreground transition-colors"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Sessions list */}
-      <div className="flex-1 overflow-y-auto px-2 pb-3 space-y-3">
-        {loading && (
-          <div className="flex items-center justify-center py-10">
-            <svg className="animate-spin w-4 h-4 text-muted-foreground/50" viewBox="0 0 24 24" fill="none">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
-            </svg>
-          </div>
+      {/* Conversation count + top shadow when scrolled */}
+      <div className={cn(
+        "px-4 pb-1 shrink-0 flex items-center justify-between transition-all",
+        isScrolled ? "shadow-[0_2px_8px_-2px_rgba(0,0,0,0.08)]" : ""
+      )}>
+        {!loading && filtered.length > 0 && (
+          <span className="text-[10px] text-muted-foreground/40 font-medium">
+            {filtered.length} conversation{filtered.length !== 1 ? "s" : ""}
+          </span>
         )}
-        {!loading && filtered.length === 0 && (
-          <p className="text-[11px] text-muted-foreground/50 text-center px-3 py-8 leading-relaxed">
-            {search ? "No conversations match." : "No chats yet.\nStart a conversation."}
-          </p>
-        )}
-        {!loading && groups.map((group) => (
-          <div key={group.label}>
-            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/40 px-2 py-1.5">{group.label}</p>
-            <div className="space-y-0.5">
-              {group.items.map((s) => (
-                <div
-                  key={s.session_id}
-                  className={cn(
-                    "group relative flex items-start rounded-xl px-3 py-2.5 cursor-pointer transition-colors",
-                    s.session_id === activeId
-                      ? "bg-primary/10 text-foreground"
-                      : "hover:bg-accent text-muted-foreground hover:text-foreground"
-                  )}
-                  onClick={() => onSelect(s)}
-                >
-                  <div className="flex-1 min-w-0 pr-5">
-                    <p className={cn(
-                      "text-xs font-medium leading-snug truncate",
-                      s.session_id === activeId ? "text-foreground" : ""
-                    )}>
-                      {s.title ?? "Untitled"}
-                    </p>
-                    <p className="text-[10px] text-muted-foreground/50 mt-0.5">{fmtDate(s.last_message_at)}</p>
-                  </div>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); onDelete(s.session_id); }}
-                    title="Delete"
-                    className="absolute right-2 top-2.5 opacity-0 group-hover:opacity-100 w-5 h-5 flex items-center justify-center rounded-md text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 transition-all"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
-                  </button>
-                </div>
-              ))}
+      </div>
+
+      {/* Scrollable sessions list */}
+      <div className="relative flex-1 min-h-0">
+        <div
+          ref={scrollRef}
+          onScroll={checkScroll}
+          className="h-full overflow-y-auto px-2 pb-10 space-y-3"
+          style={{ scrollbarWidth: "thin", scrollbarColor: "hsl(var(--border)) transparent" }}
+        >
+          {loading && (
+            <div className="flex items-center justify-center py-10">
+              <svg className="animate-spin w-4 h-4 text-muted-foreground/50" viewBox="0 0 24 24" fill="none">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+              </svg>
             </div>
-          </div>
-        ))}
+          )}
+          {!loading && filtered.length === 0 && (
+            <p className="text-[11px] text-muted-foreground/50 text-center px-3 py-8 leading-relaxed">
+              {search ? "No conversations match." : "No chats yet.\nStart a conversation."}
+            </p>
+          )}
+          {!loading && groups.map((group) => (
+            <div key={group.label}>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/40 px-2 py-1.5">{group.label}</p>
+              <div className="space-y-0.5">
+                {group.items.map((s) => (
+                  <div
+                    key={s.session_id}
+                    className={cn(
+                      "group relative flex items-start rounded-xl px-3 py-2.5 cursor-pointer transition-colors",
+                      s.session_id === activeId
+                        ? "bg-primary/10 text-foreground"
+                        : "hover:bg-accent text-muted-foreground hover:text-foreground"
+                    )}
+                    onClick={() => onSelect(s)}
+                  >
+                    <div className="flex-1 min-w-0 pr-5">
+                      <p className={cn(
+                        "text-xs font-medium leading-snug truncate",
+                        s.session_id === activeId ? "text-foreground" : ""
+                      )}>
+                        {s.title ?? "Untitled"}
+                      </p>
+                      <p className="text-[10px] text-muted-foreground/50 mt-0.5">{fmtDate(s.last_message_at)}</p>
+                    </div>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); onDelete(s.session_id); }}
+                      title="Delete"
+                      className="absolute right-2 top-2.5 opacity-0 group-hover:opacity-100 w-5 h-5 flex items-center justify-center rounded-md text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 transition-all"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Bottom fade gradient — visible when more content below */}
+        <div className={cn(
+          "absolute bottom-0 left-0 right-0 h-16 pointer-events-none transition-opacity duration-300",
+          canScrollMore ? "opacity-100" : "opacity-0"
+        )}
+          style={{ background: "linear-gradient(to top, hsl(var(--background)) 20%, transparent)" }}
+        />
+
+        {/* Scroll-to-bottom button */}
+        {canScrollMore && (
+          <button
+            onClick={scrollToBottom}
+            className="absolute bottom-2 left-1/2 -translate-x-1/2 flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-semibold bg-background border border-border text-muted-foreground hover:text-foreground hover:border-primary/40 shadow-sm transition-all z-10"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+            scroll down
+          </button>
+        )}
       </div>
     </div>
   );
@@ -1856,7 +1921,18 @@ async function generateFromChat(
     const dayMap: Record<number,string> = {1:"Monday",2:"Tuesday",3:"Wednesday",4:"Thursday",5:"Friday"};
     const day = opts?.day ?? dayMap[new Date().getDay()] ?? "Monday";
     const typeMap: Record<string,string> = { Monday:"Thought Leadership", Tuesday:"Engagement Post", Wednesday:"Tool Spotlight", Thursday:"Industry Insight", Friday:"Forward-Looking" };
-    const inputs: Record<string, unknown> = { day, contentType: opts?.contentType ?? typeMap[day], topic: text };
+    // Strip post-creation instruction words so the AI generates content about the
+    // subject matter (e.g. "blockchain") not the delivery format ("linkedin carousel").
+    const cleanedTopic = text
+      .replace(/\b(?:create|write|generate|make|draft|build|produce)\s+(?:a\s+|an\s+|the\s+)?(?:linkedin|linked[\s-]in)?\s*(?:post|carousel|content|article|slides?)\s+(?:about|on|for|to|regarding)?\s*/gi, "")
+      .replace(/\b(?:for\s+)?(?:linkedin|linked[\s-]in)\s+(?:post|carousel|content|article)\s*/gi, "")
+      .replace(/\b(?:carousel|slides?)\s+(?:format|post|content)?\s*/gi, "")
+      .replace(/\b(?:in|to|like|with|having|using|of|for)\s+\d+\s+slides?\b/gi, "")
+      .replace(/\b\d+\s+slides?\s*(?:content|format|post)?\b/gi, "")
+      .replace(/\bformat\b/gi, "")
+      .replace(/\s{2,}/g, " ")
+      .trim() || text;
+    const inputs: Record<string, unknown> = { day, contentType: opts?.contentType ?? typeMap[day], topic: cleanedTopic };
     if (opts?.slideCount) inputs.slideCount = opts.slideCount;
     if (opts?.singlePage) inputs.singlePage = true;
     const res = await fetch("/api/agents/generate", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ skillId:"daily-post", inputs }) });

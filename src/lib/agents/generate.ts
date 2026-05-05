@@ -828,11 +828,24 @@ Respond ONLY with valid JSON:
       const day = String(inputs.day || "Monday");
       const framework = frameworkMap[day] ?? "A (Insight / Thought Leadership — 7 slides)";
 
+      // Tuesday's default framework is single-page (Framework E). When the user
+      // explicitly requests a carousel, fall back to Framework A so the AI doesn't
+      // see "slides = []" in the framework name and return an empty slides array.
+      const carouselFramework = framework.includes("slides = []")
+        ? "A (Insight / Thought Leadership)"
+        : framework;
+
       const contentMode = singlePage
         ? `a single-page LinkedIn post ONLY using Framework E — return "slides" as []`
-        : `a carousel with EXACTLY ${slideCount} slides using ${framework} — slides numbered 1 to ${slideCount}`;
+        : `a carousel with EXACTLY ${slideCount} slides using ${carouselFramework} — slides numbered 1 to ${slideCount}`;
 
-      return `Generate ${contentMode}.
+      // When a carousel is explicitly requested (user specified slideCount), prepend
+      // a hard override so Tuesday's Framework E "slides = []" rule is suppressed.
+      const carouselOverride = !singlePage
+        ? `CAROUSEL OVERRIDE (highest priority): The user has explicitly requested a carousel with ${slideCount} slides. You MUST generate exactly ${slideCount} slides in the "slides" array. IGNORE any framework instruction that says "slides = []" or "single post". Framework E does NOT apply here — use ${carouselFramework} and produce all ${slideCount} slides.\n\n`
+        : "";
+
+      return `${carouselOverride}Generate ${contentMode}.
 
 Day: ${day}
 Content Type: ${inputs.contentType || "Thought Leadership"}
@@ -1540,7 +1553,21 @@ Return JSON only:
   if (WEB_RESEARCH_SKILLS.has(params.skillId)) {
     const topic = String((params.inputs.topic as string | undefined) ?? "").trim();
     if (topic) {
-      const webSearchPrompt = `You are a research analyst. Search the web for current, credible information about: "${topic}"
+      // Strip LinkedIn post-creation instruction words so the search focuses on the
+      // subject matter (e.g. "blockchain") not the format ("linkedin carousel post").
+      let searchTopic = topic
+        .replace(/\b(?:create|write|generate|make|draft|build|produce)\s+(?:a\s+|an\s+|the\s+)?(?:linkedin|linked[\s-]in)?\s*(?:post|carousel|content|article|slide[s]?)\s*/gi, "")
+        .replace(/\b(?:linkedin|linked[\s-]in)\s+(?:post|carousel|content|article)\s*/gi, "")
+        .replace(/\b(?:carousel|slide[s]?)\s+(?:format|post|content)?\s*/gi, "")
+        .replace(/\b(?:in|to|like|with|having|using|of|for)\s+\d+\s+slide[s]?\b/gi, "")
+        .replace(/\b\d+\s+slide[s]?\s+(?:content|format|post)?\b/gi, "")
+        .replace(/\bformat\b/gi, "")
+        .replace(/\s{2,}/g, " ")
+        .trim();
+      if (!searchTopic || searchTopic.length < 3) searchTopic = topic;
+      const webSearchPrompt = `You are a research analyst. Search the web for current, credible information about the SUBJECT MATTER in this request: "${searchTopic}"
+
+Focus your search on the core topic/industry being discussed. Ignore any references to post format, carousel slides, LinkedIn, or content style — those are just delivery instructions, not what to research.
 
 Find MINIMUM 20 distinct web sources — articles, reports, company announcements, analyst coverage (Gartner, Forrester, IDC), industry publications, expert commentary, and credible news outlets.
 
@@ -1612,7 +1639,7 @@ HARD REQUIREMENT: minimum 20 sources in the sources array. Search multiple angle
             body: JSON.stringify({
               model: process.env.XAI_MODEL || "grok-3-latest",
               messages: [{ role: "user", content: webSearchPrompt }],
-              tools: [{ type: "live_search" }],
+              tools: [{ type: "live_search", sources: [{ type: "web" }] }],
               temperature: 0.2,
               max_tokens: 8000,
             }),

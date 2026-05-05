@@ -74,7 +74,7 @@ Return ONLY valid JSON — no markdown, no explanation:
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${xaiKey}` },
       body: JSON.stringify({
         model,
-        tools: [{ type: "live_search" }],
+        tools: [{ type: "live_search", sources: [{ type: "web" }] }],
         messages: [{ role: "user", content: prompt }],
         temperature: 0.3,
       }),
