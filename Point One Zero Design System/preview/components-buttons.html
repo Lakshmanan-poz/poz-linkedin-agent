@@ -1,0 +1,45 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<title>Buttons</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<link rel="stylesheet" href="_card.css">
+<style>
+  .card { padding: 28px; }
+  .grp { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; margin-bottom: 14px; }
+  .btn {
+    font-family: var(--font-body);
+    font-weight: 600;
+    font-size: 14px;
+    letter-spacing: -0.01em;
+    padding: 12px 20px;
+    border-radius: 4px;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: all 180ms cubic-bezier(.2,.8,.2,1);
+  }
+  .btn--primary { background: #050517; color: #fff; }
+  .btn--primary:hover { background: #292937; }
+  .btn--brand { background: #009FF0; color: #fff; }
+  .btn--brand:hover { background: #0041E6; }
+  .btn--ghost { background: transparent; color: #050517; border-color: #D9D9D9; }
+  .btn--ghost:hover { border-color: #050517; }
+  .btn--link { background: transparent; color: #0041E6; padding: 12px 0; border: 0; text-decoration: underline; text-underline-offset: 3px; }
+  .btn--sm { padding: 8px 14px; font-size: 13px; }
+  .btn--lg { padding: 16px 28px; font-size: 15px; }
+</style></head>
+<body>
+  <div class="card">
+    <div class="eyebrow">Buttons</div>
+    <div class="grp">
+      <button class="btn btn--primary">start a project →</button>
+      <button class="btn btn--brand">explore work</button>
+      <button class="btn btn--ghost">read more</button>
+      <button class="btn btn--link">view case study</button>
+    </div>
+    <div class="grp">
+      <button class="btn btn--primary btn--sm">small</button>
+      <button class="btn btn--primary">default</button>
+      <button class="btn btn--primary btn--lg">large</button>
+    </div>
+  </div>
+</body></html>

@@ -980,14 +980,244 @@ function WebSourcesPanel({ sources }: { sources: WebSource[] }) {
   );
 }
 
+/* ─── POZ carousel preview — renders Claude-generated HTML per slide ─────────── */
+type SlideWithHtml = { position: number; type: string; title: string; body: string; slideHtml?: string };
+
+function applyColorOverride(html: string, accent: string): string {
+  // Replace only the primary blue — keeps ink (#050517) and white intact
+  return html.replace(/#009FF0/gi, accent);
+}
+
+function fallbackSlideHtml(s: SlideWithHtml): string {
+  const isInk = s.position === 1 || (s.type || "").toLowerCase().includes("hook") || (s.type || "").toLowerCase().includes("quote") || (s.type || "").toLowerCase().includes("principle");
+  const bg = isInk ? "#050517" : "#FFFFFF";
+  const titleColor = isInk ? "#FFFFFF" : "#050517";
+  const bodyColor  = isInk ? "rgba(255,255,255,0.65)" : "#555562";
+  return `<div style="width:1080px;height:1350px;background:${bg};display:flex;flex-direction:column;padding:64px;font-family:'Inter',sans-serif;">
+    <style>@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700&display=swap');</style>
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:0.10em;padding:8px 24px;background:#009FF0;color:${isInk ? "#050517" : "#FFFFFF"};border-radius:4px;width:fit-content;">${(s.type || "SLIDE").toUpperCase()}</div>
+    <div style="flex:1;"></div>
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:120px;line-height:1.0;color:${titleColor};letter-spacing:0;">${s.title}</div>
+    <div style="height:40px;"></div>
+    <p style="font-family:'Inter',sans-serif;font-size:36px;line-height:1.5;color:${bodyColor};margin:0;">${s.body}</p>
+    <div style="height:64px;"></div>
+  </div>`;
+}
+
+function HtmlSlidePreview({ html }: { html: string }) {
+  // Detect ink (dark) slides to give frame correct background
+  const isDark = /background:#050517/i.test(html) || /background:\s*#050517/i.test(html);
+  return (
+    <div style={{ width: 270, height: 338, overflow: "hidden", borderRadius: 6, boxShadow: "0 2px 16px rgba(5,5,23,0.18)", flexShrink: 0, background: isDark ? "#050517" : "#FFFFFF", position: "relative" }}>
+      <div
+        style={{ width: 1080, height: 1350, transformOrigin: "top left", transform: "scale(0.25)", pointerEvents: "none" }}
+        dangerouslySetInnerHTML={{ __html: html }}
+      />
+    </div>
+  );
+}
+
+function CarouselHtmlPreview({ slides, accentOverride }: {
+  slides: SlideWithHtml[];
+  accentOverride?: string;
+}) {
+  return (
+    <div style={{ display: "flex", gap: 12, overflowX: "auto", paddingBottom: 8, paddingTop: 4 }}>
+      {slides.map(s => {
+        let html = s.slideHtml || fallbackSlideHtml(s);
+        if (accentOverride && accentOverride !== "#009FF0") {
+          html = applyColorOverride(html, accentOverride);
+        }
+        return <HtmlSlidePreview key={s.position} html={html} />;
+      })}
+    </div>
+  );
+}
+
+/* ─── DailyResultCard ───────────────────────────────────────────────────────── */
 function DailyResultCard({ data, userId, userName }: { data: DailyResult; userId?: number; userName?: string }) {
   const sentKey = `poz-sent-${data.day}-${data.topic.slice(0, 50).replace(/\W+/g, "-")}`;
 
-  const [saving,      setSaving]      = React.useState(false);
-  const [saved,       setSaved]       = React.useState(false);
-  const [submitting,  setSubmitting]  = React.useState(false);
-  const [submitted,   setSubmitted]   = React.useState(false);
-  const [showConfirm, setShowConfirm] = React.useState(false);
+  const [saving,          setSaving]          = React.useState(false);
+  const [saved,           setSaved]           = React.useState(false);
+  const [submitting,      setSubmitting]      = React.useState(false);
+  const [submitted,       setSubmitted]       = React.useState(false);
+  const [showConfirm,     setShowConfirm]     = React.useState(false);
+  const [pdfLoading,      setPdfLoading]      = React.useState(false);
+  const [pdfError,        setPdfError]        = React.useState("");
+  const [refinePrompt,    setRefinePrompt]    = React.useState("");
+  const [refining,        setRefining]        = React.useState(false);
+  const [refineError,     setRefineError]     = React.useState("");
+  const [colorOverride,   setColorOverride]   = React.useState<string | null>(null); // stores accent hex only
+  const [htmlSlides,      setHtmlSlides]      = React.useState<SlideWithHtml[] | null>(null);
+  const [htmlLoading,     setHtmlLoading]     = React.useState(false);
+  const [htmlError,       setHtmlError]       = React.useState("");
+
+  // Stable cache key for this exact carousel (topic + day + slide fingerprint)
+  const cacheKey = React.useMemo(() => {
+    const raw = data.topic + "|" + data.day + "|" + (data.slides || []).map(s => s.position + s.type + s.title).join("~");
+    let h = 0;
+    for (let i = 0; i < raw.length; i++) h = (Math.imul(31, h) + raw.charCodeAt(i)) | 0;
+    return `poz-html-${Math.abs(h)}`;
+  }, [data.topic, data.day, data.slides]);
+
+  // On mount: load from cache OR generate fresh
+  React.useEffect(() => {
+    if (!data.slides || data.slides.length === 0) return;
+    if (htmlSlides || htmlLoading) return;
+    try {
+      const cached = localStorage.getItem(cacheKey);
+      if (cached) {
+        setHtmlSlides(JSON.parse(cached));
+        return; // served from cache — no API call
+      }
+    } catch { /* ignore parse/quota errors */ }
+    generateClaudeHtml(false);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data.slides, cacheKey]);
+
+  async function generateClaudeHtml(forceNew = false) {
+    if (!data.slides || data.slides.length === 0) return;
+    if (forceNew) {
+      try { localStorage.removeItem(cacheKey); } catch { /* ignore */ }
+    }
+    setHtmlLoading(true);
+    setHtmlError("");
+    try {
+      const res = await fetch("/api/agents/carousel-html", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ slides: data.slides, topic: data.topic }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? "Claude design generation failed");
+      setHtmlSlides(json.slides);
+      try { localStorage.setItem(cacheKey, JSON.stringify(json.slides)); } catch { /* quota full */ }
+    } catch (e) {
+      setHtmlError(e instanceof Error ? e.message : "Failed to generate design");
+    } finally {
+      setHtmlLoading(false);
+    }
+  }
+
+  async function applyDesignChange() {
+    if (!refinePrompt.trim()) return;
+    setRefining(true);
+    setRefineError("");
+    try {
+      const res = await fetch("/api/agents/carousel-refine", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt: refinePrompt.trim(), currentParams: { accentColor: colorOverride ?? "#009FF0" } }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? "Failed to apply changes");
+      setColorOverride(json.accentColor ?? "#009FF0");
+      setRefinePrompt("");
+    } catch (e) {
+      setRefineError(e instanceof Error ? e.message : "Failed to apply changes");
+    } finally {
+      setRefining(false);
+    }
+  }
+
+  async function downloadPdf() {
+    const slides = (data.slides || []) as SlideWithHtml[];
+    if (!slides.length) return;
+    setPdfLoading(true);
+    setPdfError("");
+
+    // Dark overlay — covers the briefly-visible slide during capture
+    const overlay = document.createElement("div");
+    overlay.style.cssText = [
+      "position:fixed;top:0;left:0;right:0;bottom:0;",
+      "background:rgba(5,5,23,0.92);",
+      "z-index:99998;",
+      "display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;",
+      "font-family:'Inter',sans-serif;color:#FFFFFF;",
+    ].join("");
+    overlay.innerHTML = `
+      <div style="width:40px;height:40px;border:3px solid rgba(255,255,255,0.2);border-top-color:#009FF0;border-radius:50%;animation:spin 0.8s linear infinite;"></div>
+      <div id="pdf-status" style="font-size:15px;letter-spacing:-0.01em;color:rgba(255,255,255,0.75);">Preparing PDF…</div>
+      <style>@keyframes spin{to{transform:rotate(360deg)}}</style>`;
+    document.body.appendChild(overlay);
+    const statusEl = overlay.querySelector("#pdf-status") as HTMLElement;
+
+    try {
+      const [{ toJpeg }, { jsPDF }] = await Promise.all([
+        import("html-to-image"),
+        import("jspdf"),
+      ]);
+
+      // Ensure Bebas Neue + Inter are fully painted before any capture
+      await document.fonts.ready;
+      await Promise.all([
+        document.fonts.load('400 185px "Bebas Neue"'),
+        document.fonts.load('400 144px "Bebas Neue"'),
+        document.fonts.load('400 120px "Bebas Neue"'),
+        document.fonts.load('400 100px "Bebas Neue"'),
+        document.fonts.load('400 40px "Bebas Neue"'),
+        document.fonts.load('400 28px "Bebas Neue"'),
+        document.fonts.load('700 36px "Inter"'),
+        document.fonts.load('400 32px "Inter"'),
+        document.fonts.load('600 28px "Inter"'),
+      ]);
+
+      const doc = new jsPDF({ orientation: "portrait", unit: "px", format: [1080, 1350], compress: true });
+      const renderSlides = htmlSlides || slides;
+
+      for (let i = 0; i < renderSlides.length; i++) {
+        if (statusEl) statusEl.textContent = `Rendering slide ${i + 1} of ${renderSlides.length}…`;
+
+        let html = renderSlides[i].slideHtml || fallbackSlideHtml(renderSlides[i]);
+        if (colorOverride) html = applyColorOverride(html, colorOverride);
+
+        // Render at viewport top-left — z-index 99999 (above overlay at 99998)
+        // Browser MUST paint elements in the viewport to capture them correctly
+        const div = document.createElement("div");
+        div.style.cssText = [
+          "position:fixed;top:0;left:0;",
+          "width:1080px;height:1350px;",
+          "overflow:hidden;",
+          "z-index:99999;",
+          "pointer-events:none;",
+        ].join("");
+        // Strip <link> tags so html-to-image doesn't CORS-fetch Google Fonts
+        const cleanHtml = html.replace(/<link\b[^>]*>/gi, "");
+        div.innerHTML = cleanHtml;
+        document.body.appendChild(div);
+
+        try {
+          // Allow browser to fully paint the element (fonts + layout)
+          await new Promise(r => setTimeout(r, 200));
+
+          const jpeg = await toJpeg(div, {
+            width: 1080,
+            height: 1350,
+            pixelRatio: 1,     // 1080×1350 — avoids jsPDF memory overflow on multi-slide decks
+            quality: 0.95,
+            skipFonts: true,   // fonts already in document.fonts from layout.tsx — skip CORS re-fetch
+            cacheBust: false,
+          });
+
+          if (i > 0) doc.addPage();
+          doc.addImage(jpeg, "JPEG", 0, 0, 1080, 1350);
+        } finally {
+          // Always remove div — even if toJpeg or addImage throws
+          if (document.body.contains(div)) document.body.removeChild(div);
+        }
+      }
+
+      if (statusEl) statusEl.textContent = "Saving PDF…";
+      doc.save(`${data.topic.slice(0, 40).replace(/\W+/g, "-")}-carousel.pdf`);
+
+    } catch (e) {
+      setPdfError(e instanceof Error ? e.message : "PDF generation failed");
+    } finally {
+      if (document.body.contains(overlay)) document.body.removeChild(overlay);
+      setPdfLoading(false);
+    }
+  }
   const dc = DAY_CFG[data.day] ?? DAY_CFG["Monday"];
 
   // Restore one-time-send state from localStorage on mount
@@ -1256,6 +1486,92 @@ function DailyResultCard({ data, userId, userName }: { data: DailyResult; userId
             <span className="text-[10px] text-muted-foreground/60 ml-auto">for DMs / comments after posting</span>
           </div>
           <p className="text-xs leading-relaxed text-foreground italic">&ldquo;{data.outreachHook}&rdquo;</p>
+        </div>
+      )}
+
+      {/* ── Carousel Slide Designer ── */}
+      {data.slides && data.slides.length > 0 && (
+        <div className="rounded-xl border-2 border-dashed border-[#009FF0]/40 bg-[#009FF0]/5 p-4 space-y-4">
+          {/* Header */}
+          <div className="flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#009FF0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+            <span className="text-[11px] font-bold uppercase tracking-widest text-[#009FF0]">Carousel Slide Designer</span>
+            <span className="text-[10px] text-muted-foreground ml-auto">{data.slides.length} slides · Claude Design</span>
+            {!htmlLoading && (
+              <button onClick={() => generateClaudeHtml(true)} className="text-[10px] text-[#009FF0] border border-[#009FF0]/40 rounded px-2 py-0.5 hover:bg-[#009FF0]/10 transition-colors">
+                Redesign
+              </button>
+            )}
+          </div>
+
+          {/* ── Claude-generated HTML preview ── */}
+          {htmlLoading ? (
+            <div className="flex flex-col items-center justify-center gap-3 py-10">
+              <svg className="animate-spin w-6 h-6 text-[#009FF0]" viewBox="0 0 24 24" fill="none">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+              </svg>
+              <p className="text-xs text-muted-foreground">Claude is designing your slides…</p>
+            </div>
+          ) : htmlError ? (
+            <div className="space-y-2">
+              <p className="text-[11px] text-red-500">{htmlError}</p>
+              <button onClick={() => generateClaudeHtml(true)} className="text-xs text-[#009FF0] underline">Retry design</button>
+            </div>
+          ) : (
+            <CarouselHtmlPreview
+              slides={htmlSlides || (data.slides as SlideWithHtml[])}
+              accentOverride={colorOverride ?? undefined}
+            />
+          )}
+
+          {/* ── Design change prompt ── */}
+          <div className="space-y-2">
+            <p className="text-[10px] text-muted-foreground font-medium">Not happy with the design? Describe what to change:</p>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={refinePrompt}
+                onChange={e => setRefinePrompt(e.target.value)}
+                onKeyDown={e => { if (e.key === "Enter" && !refining) applyDesignChange(); }}
+                placeholder='e.g. "dark mode" · "orange accent" · "green theme"'
+                className="flex-1 text-xs px-3 py-2 rounded-lg border border-border bg-background focus:outline-none focus:ring-1 focus:ring-[#009FF0]/50"
+              />
+              <button
+                onClick={applyDesignChange}
+                disabled={refining || !refinePrompt.trim()}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold text-white disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                style={{ background: "linear-gradient(135deg,#0080d0,#009FF0)" }}
+              >
+                {refining ? <svg className="animate-spin w-3 h-3" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/></svg>
+                  : <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>}
+                Apply
+              </button>
+            </div>
+            {refineError && <p className="text-[10px] text-red-500">{refineError}</p>}
+          </div>
+
+          {/* ── Download PDF ── */}
+          <div className="flex items-center gap-2 flex-wrap pt-1 border-t border-[#009FF0]/20">
+            <button
+              onClick={downloadPdf}
+              disabled={pdfLoading}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold text-white transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
+              style={{ background: pdfLoading ? "#009FF099" : "linear-gradient(135deg,#0080d0,#009FF0)", boxShadow: pdfLoading ? "none" : "0 4px 14px rgba(0,159,240,0.35)" }}
+            >
+              {pdfLoading ? (
+                <><svg className="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/></svg>Building PDF…</>
+              ) : (
+                <><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>Download PDF</>
+              )}
+            </button>
+            {pdfError && (
+              <p className="text-[11px] text-red-500 flex items-center gap-1.5 w-full">
+                <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                {pdfError}
+              </p>
+            )}
+          </div>
         </div>
       )}
 

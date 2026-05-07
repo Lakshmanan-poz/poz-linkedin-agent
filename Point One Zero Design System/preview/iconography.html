@@ -1,0 +1,34 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<title>Iconography</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<link rel="stylesheet" href="_card.css">
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+<style>
+  .card { padding: 28px; }
+  .grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 14px; }
+  .ico { display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; border: 1px solid #EEEEEE; border-radius: 4px; color: #050517; }
+  .note { font-family: var(--font-body); font-size: 11px; color: #848492; margin-top: 14px; letter-spacing: -0.01em; }
+  .note b { color: #050517; }
+</style></head>
+<body>
+  <div class="card">
+    <div class="eyebrow">Iconography · Lucide <span style="color:#D9D9D9;font-weight:400;">(flagged substitution)</span></div>
+    <div class="grid">
+      <div class="ico"><i data-lucide="arrow-right"></i></div>
+      <div class="ico"><i data-lucide="search"></i></div>
+      <div class="ico"><i data-lucide="sparkles"></i></div>
+      <div class="ico"><i data-lucide="bar-chart-2"></i></div>
+      <div class="ico"><i data-lucide="layers"></i></div>
+      <div class="ico"><i data-lucide="compass"></i></div>
+      <div class="ico"><i data-lucide="zap"></i></div>
+      <div class="ico"><i data-lucide="message-square"></i></div>
+      <div class="ico"><i data-lucide="settings"></i></div>
+      <div class="ico"><i data-lucide="play"></i></div>
+      <div class="ico"><i data-lucide="check"></i></div>
+      <div class="ico"><i data-lucide="plus"></i></div>
+    </div>
+    <p class="note"><b>brand target:</b> solid-filled pictographs. <b>current:</b> Lucide outline via CDN. swap to Font Awesome Solid or original POZ set when available.</p>
+  </div>
+  <script>lucide.createIcons();</script>
+</body></html>

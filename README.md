@@ -1,86 +1,137 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# POZ Social Media Agent
 
-## Getting Started
+AI-powered LinkedIn content platform for Point One Zero — combines post creation, marketing agents, and carousel generation with the full POZ design system.
+
+---
+
+## Quick Start
+
+### Prerequisites
+- Node.js 18+
+- An Anthropic API key (`ANTHROPIC_API_KEY`) for carousel generation
+- An OpenAI API key (`OPENAI_API_KEY`) for post generation and agent skills
 
 ### Installation
 
-1. Clone the repository:
 ```bash
+# Clone
 git clone https://github.com/migavel-poz/POZ-Agent.git
 cd POZ-Agent
-```
 
-2. Install dependencies:
-```bash
+# Install dependencies
 npm install
+
+# Set up environment
+cp .env.example .env.local
+# Add your keys to .env.local:
+#   OPENAI_API_KEY=sk-...
+#   ANTHROPIC_API_KEY=sk-ant-...
 ```
 
-### Running the Development Server
-
-The development server runs on port 3000 by default. 
-
-**Start the development server:**
+### Running
 
 ```bash
 npm run dev
+# App available at http://localhost:3000
+# SQLite database auto-created at ./data/social-media-agent.db
+# Default team members and templates are seeded on first run
 ```
 
-If you encounter the error `EADDRINUSE: address already in use :::3000`, port 3000 is already occupied. Choose one of these options:
+If port 3000 is already in use:
 
-**Option 1: Use a different port**
 ```bash
+# Use a different port
 npx next dev --port 3001
+
+# Or kill the process using port 3000 (Windows PowerShell)
+$pid = (Get-NetTCPConnection -LocalPort 3000 -ErrorAction SilentlyContinue).OwningProcess
+if ($pid) { Stop-Process -Id $pid -Force }
 ```
 
-**Option 2: Kill the process using port 3000 (Windows PowerShell)**
-```powershell
-$processId = (Get-NetTCPConnection -LocalPort 3000 -ErrorAction SilentlyContinue).OwningProcess
-if ($processId) { 
-  Stop-Process -Id $processId -Force
-  Write-Host "Killed process $processId. Try 'npm run dev' again."
-}
+---
+
+## Features
+
+### Post Creation Pipeline
+3-step wizard — choose type → enter topic → AI generates → preview & edit → save draft. Supports 4 post formats: Problem-Solution, Educational, Execution/Build, Carousel. Full editorial workflow: Draft → In Review → Ready for Design → With Designer → Ready to Publish → Published.
+
+### LinkedIn Carousel Generator
+On the Agent Catalog page, select any agent skill → a 5-slide POZ-branded carousel is generated automatically using Claude claude-sonnet-4-6. Each slide follows the POZ design system (Bebas Neue + Inter, three canvases: Ink #050517, White #FFFFFF, Blue #009FF0). Slides are cached in localStorage by content hash to prevent re-generation on revisit. Download as PDF with one click.
+
+### Marketing AI Agents
+Three specialized agents (18 skills total):
+- **Agent 1.1** — Content & Authority (content calendar, post generation, AEO/SEO, repurposing, analytics)
+- **Agent 1.2** — Thought Leadership (POV framing, deep research, argument structuring, long-form, council review, executive summary)
+- **Agent 1.3** — Market Intelligence (competitor profiles, signal scanning, trend radar, AEO audit, opportunity mapping, briefing packs)
+
+Nine skills use OpenAI Responses API with real-time web search.
+
+### Service Catalog
+Gap analysis dashboard mapping 7 function areas, 27 planned agents, and 149 skills with status tracking (Exists, Planned, Missing, Partial).
+
+---
+
+## Environment Variables
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `OPENAI_API_KEY` | Yes | GPT-4o for post generation and 18 agent skills |
+| `ANTHROPIC_API_KEY` | Yes | Claude claude-sonnet-4-6 for carousel HTML generation |
+
+The OpenAI key can also be set via the Settings page (stored in the database, overrides env var).
+
+---
+
+## Tech Stack
+
+| Layer | Technology |
+|-------|-----------|
+| Framework | Next.js 15 App Router |
+| Language | TypeScript |
+| Styling | Tailwind CSS + shadcn/ui |
+| Database | SQLite via better-sqlite3 (WAL mode) |
+| AI — Posts & Agents | OpenAI SDK (GPT-4o, Responses API) |
+| AI — Carousel | Anthropic SDK (claude-sonnet-4-6) |
+| PDF Export | html-to-image + jsPDF (browser-side) |
+| Fonts | Bebas Neue + Inter via Google Fonts |
+| Notifications | Sonner |
+| Theming | next-themes |
+
+---
+
+## Project Structure
+
+```
+src/
+├── app/
+│   ├── layout.tsx                    # Root layout — loads Bebas Neue + Inter globally
+│   ├── agent-catalog/page.tsx        # Carousel generator, PDF download
+│   ├── agents/[agentId]/page.tsx     # Agent skill forms + outputs
+│   ├── posts/                        # Post list, creation wizard, detail
+│   ├── dashboard/                    # KPI dashboard
+│   └── api/
+│       ├── agents/carousel-html/     # Claude carousel HTML generator
+│       ├── agents/generate/          # OpenAI skill generation
+│       ├── generate/                 # OpenAI post generation
+│       └── posts/                    # Post CRUD + status + revisions
+│
+├── components/
+│   ├── layout/                       # Sidebar, header
+│   ├── ui/                           # shadcn/ui components
+│   └── agents/skills/                # 18 skill form components
+│
+└── lib/
+    ├── db/                           # SQLite — schema, CRUD modules
+    ├── ai/generate.ts                # Post generation
+    └── agents/                       # Agent types, constants, generate
+
+Point One Zero Design System/         # Brand reference (fonts, colors, layout rules)
+public/carousel-sample.html           # 5-slide POZ carousel reference
+data/social-media-agent.db            # SQLite database (auto-created)
 ```
 
-**Option 3: Create a custom npm script (edit package.json)**
-Add this to your `package.json` scripts for a specific port:
-```json
-"dev:3001": "cross-env PORT=3001 next dev --port 3001"
-```
-Then run: `npm run dev:3001`
+---
 
-Open [http://localhost:3000](http://localhost:3000) (or your chosen port) with your browser to see the result.
+## Documentation
 
-> **Note**: The development script uses `cross-env` for cross-platform compatibility between Windows and Unix-like systems.
-
-## Environment
-
-Create `.env` from `.env.example` and set:
-
-- `DATABASE_URL` for migrations
-- `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` for public Supabase access
-- `OPENAI_API_KEY` for AI features
-
-Run migrations with:
-
-```bash
-npm run db:migrate
-```
-
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+See [DOCUMENTATION.md](DOCUMENTATION.md) for the full reference — API endpoints, database schema, agent skill input/output specs, and workflow diagrams.

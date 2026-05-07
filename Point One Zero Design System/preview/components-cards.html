@@ -1,0 +1,35 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<title>Cards</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<link rel="stylesheet" href="_card.css">
+<style>
+  .card { padding: 24px; background: #F6F6F6; display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .poz-card {
+    background: #fff;
+    border: 1px solid #EEEEEE;
+    border-radius: 4px;
+    padding: 20px;
+    box-shadow: 0 1px 2px rgba(5,5,23,.05);
+  }
+  .meta { font-family: var(--font-body); font-size: 10px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: #848492; margin-bottom: 12px; }
+  .t { font-family: var(--font-display); font-size: 28px; text-transform: uppercase; line-height: 1; margin-bottom: 10px; }
+  .p { font-family: var(--font-body); font-size: 13px; color: #555562; line-height: 1.5; margin: 0; }
+  .poz-card--dark { background: #050517; color: #fff; border-color: #050517; }
+  .poz-card--dark .meta { color: #848492; }
+  .poz-card--dark .p { color: rgba(255,255,255,.75); }
+</style></head>
+<body>
+  <div class="card">
+    <div class="poz-card">
+      <div class="meta">Case Study · 2025</div>
+      <div class="t">Signal Bank</div>
+      <p class="p">reimagined onboarding for a challenger bank — 38% lift in completion.</p>
+    </div>
+    <div class="poz-card poz-card--dark">
+      <div class="meta">Service</div>
+      <div class="t" style="color:#009FF0;">AI Product<br>Strategy</div>
+      <p class="p">from idea to roadmap in six weeks.</p>
+    </div>
+  </div>
+</body></html>

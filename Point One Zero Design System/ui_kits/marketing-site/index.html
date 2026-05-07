@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=1280" />
+  <title>Point One Zero — Marketing UI Kit</title>
+  <link rel="stylesheet" href="../../colors_and_type.css" />
+  <link rel="stylesheet" href="site.css" />
+  <link rel="icon" href="../../assets/logo-mark-black.png" />
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel" src="Nav.jsx"></script>
+  <script type="text/babel" src="Hero.jsx"></script>
+  <script type="text/babel" src="WorkGrid.jsx"></script>
+  <script type="text/babel" src="ServicesList.jsx"></script>
+  <script type="text/babel" src="Contact.jsx"></script>
+  <script type="text/babel" src="Footer.jsx"></script>
+
+  <script type="text/babel">
+    const App = () => {
+      const [active, setActive] = React.useState('home');
+      React.useEffect(() => { window.scrollTo(0, 0); }, [active]);
+
+      return (
+        <div data-screen-label={active}>
+          <Nav active={active === 'home' ? 'work' : active} onNav={setActive} />
+          {active === 'home' && (<>
+            <Hero onCta={() => setActive('contact')} />
+            <WorkGrid />
+            <ServicesList />
+            <Footer />
+          </>)}
+          {active === 'work' && (<><WorkGrid /><Footer /></>)}
+          {active === 'services' && (<><ServicesList /><Footer /></>)}
+          {active === 'studio' && (<>
+            <section className="poz-section poz-section--dark">
+              <div className="poz-section__head" style={{maxWidth: 1200, margin: '0 auto'}}>
+                <span className="poz-eyebrow-sm" style={{color:'rgba(255,255,255,.6)'}}>studio</span>
+                <h2 className="poz-section__title">small team.<br/>senior only.</h2>
+                <p style={{fontFamily:'var(--font-body)', fontSize:20, lineHeight:1.5, letterSpacing:'-.01em', maxWidth:640, marginTop:32, color:'rgba(255,255,255,.8)'}}>
+                  we're a handful of strategists, designers, and engineers. every project runs with <strong><em>principals</em></strong> — no pyramid, no juniors piloting.
+                </p>
+              </div>
+            </section>
+            <Footer />
+          </>)}
+          {active === 'journal' && (<><Journal /><Footer /></>)}
+          {active === 'contact' && (<><Contact /><Footer /></>)}
+        </div>
+      );
+    };
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>

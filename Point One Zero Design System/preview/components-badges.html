@@ -1,0 +1,41 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<title>Badges & chips</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<link rel="stylesheet" href="_card.css">
+<style>
+  .card { padding: 28px; }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; align-items: center; }
+  .chip {
+    font-family: var(--font-body);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    padding: 6px 10px;
+    border-radius: 2px;
+    border: 1px solid transparent;
+  }
+  .chip--brand { background: #009FF0; color: #fff; }
+  .chip--ink { background: #050517; color: #fff; }
+  .chip--outline { border-color: #D9D9D9; color: #050517; }
+  .chip--muted { background: #EEEEEE; color: #555562; }
+  .chip--accent { background: #0041E6; color: #fff; }
+</style></head>
+<body>
+  <div class="card">
+    <div class="eyebrow">Badges & tags</div>
+    <div class="row">
+      <span class="chip chip--brand">AI Strategy</span>
+      <span class="chip chip--ink">Product Design</span>
+      <span class="chip chip--accent">Growth</span>
+      <span class="chip chip--outline">Research</span>
+      <span class="chip chip--muted">Brand</span>
+    </div>
+    <div class="row">
+      <span class="chip chip--outline">2025</span>
+      <span class="chip chip--outline">fintech</span>
+      <span class="chip chip--outline">case study</span>
+    </div>
+  </div>
+</body></html>

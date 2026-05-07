@@ -495,17 +495,7 @@ Respond ONLY with valid JSON:
     }
   ],
   "caption": string,
-  "hashtags": string[],
-  "visualizationIdeas": [
-    {
-      "position": number,
-      "background": string,
-      "typography": string,
-      "layout": string,
-      "colorScheme": string,
-      "designNote": string
-    }
-  ]
+  "hashtags": string[]
 }`,
     buildUserPrompt: (inputs) =>
       `Generate an 8-slide LinkedIn carousel in the exact POZ content style.
@@ -1639,7 +1629,6 @@ HARD REQUIREMENT: minimum 20 sources in the sources array. Search multiple angle
             body: JSON.stringify({
               model: process.env.XAI_MODEL || "grok-3-latest",
               messages: [{ role: "user", content: webSearchPrompt }],
-              tools: [{ type: "live_search", sources: [{ type: "web" }] }],
               temperature: 0.2,
               max_tokens: 8000,
             }),

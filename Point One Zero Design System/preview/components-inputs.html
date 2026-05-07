@@ -1,0 +1,44 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<title>Form inputs</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<link rel="stylesheet" href="_card.css">
+<style>
+  .card { padding: 28px; }
+  .field { margin-bottom: 16px; }
+  .label { font-family: var(--font-body); font-size: 11px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: var(--fg-2); margin-bottom: 6px; display: block; }
+  .input, .textarea {
+    width: 100%;
+    box-sizing: border-box;
+    font-family: var(--font-body);
+    font-size: 14px;
+    color: var(--fg-1);
+    padding: 12px 14px;
+    background: #fff;
+    border: 1px solid #D9D9D9;
+    border-radius: 4px;
+    transition: border-color 180ms, box-shadow 180ms;
+    letter-spacing: -0.01em;
+  }
+  .input:focus, .textarea:focus { outline: none; border-color: #009FF0; box-shadow: 0 0 0 3px rgba(0,159,240,.25); }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+</style></head>
+<body>
+  <div class="card">
+    <div class="eyebrow">Inputs</div>
+    <div class="row">
+      <div class="field">
+        <label class="label">name</label>
+        <input class="input" value="sam rivera" />
+      </div>
+      <div class="field">
+        <label class="label">email</label>
+        <input class="input" placeholder="you@company.com" />
+      </div>
+    </div>
+    <div class="field">
+      <label class="label">what are you building?</label>
+      <textarea class="textarea" rows="2" placeholder="a few sentences is plenty."></textarea>
+    </div>
+  </div>
+</body></html>

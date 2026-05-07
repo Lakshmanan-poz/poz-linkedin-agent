@@ -19,13 +19,15 @@
 
 ## 1. Project Description
 
-**POZ Social Media Agent** is a full-stack AI-powered social media content management platform built for LinkedIn-first B2B thought leadership. It combines three core capabilities:
+**POZ Social Media Agent** is a full-stack AI-powered social media content management platform built for LinkedIn-first B2B thought leadership. It combines four core capabilities:
 
 1. **Content Creation Pipeline** — A multi-step wizard that uses OpenAI GPT-4o to generate LinkedIn posts (problem-solution, educational, execution/build, carousel formats), with a full editorial workflow from draft to published.
 
 2. **Marketing AI Agents** — Three specialized agents (18 skills total) covering content strategy, thought leadership development, and market intelligence. Nine of these skills use OpenAI's Responses API with real-time web search for up-to-date competitive and market data.
 
-3. **Service Catalog & Planning** — A comprehensive gap analysis dashboard mapping 7 function areas, 27 planned agents, and 149 skills with status tracking (Exists, Planned, Missing, Partial) and priority rankings.
+3. **LinkedIn Carousel Generator** — On the Agent Catalog page, any agent skill automatically generates a 5-slide POZ-branded carousel using Claude claude-sonnet-4-6. Each slide is production-quality HTML following the POZ design system (Bebas Neue + Inter, Ink/White/Blue canvases). Slides are cached in localStorage and downloadable as a PDF in one click.
+
+4. **Service Catalog & Planning** — A comprehensive gap analysis dashboard mapping 7 function areas, 27 planned agents, and 149 skills with status tracking (Exists, Planned, Missing, Partial) and priority rankings.
 
 The platform is designed for a marketing team of 10 members with role-based workflows (leads, members, designers) and includes a content calendar, prompt template management, analytics dashboard, and team management.
 
@@ -35,14 +37,17 @@ The platform is designed for a marketing team of 10 members with role-based work
 
 | Layer | Technology | Version | Purpose |
 |-------|-----------|---------|---------|
-| **Framework** | Next.js (App Router) | 16.1.6 | Full-stack React framework with API routes |
-| **UI Library** | React | 19.2.3 | Component-based UI |
+| **Framework** | Next.js (App Router) | 15.x | Full-stack React framework with API routes |
+| **UI Library** | React | 19.x | Component-based UI |
 | **Language** | TypeScript | 5.x | Type-safe development |
 | **Styling** | Tailwind CSS | 4.x | Utility-first CSS |
 | **UI Components** | shadcn/ui + Radix UI | Latest | Accessible component library (Card, Tabs, Dialog, Badge, Select, Button, etc.) |
 | **Icons** | Lucide React | Latest | SVG icon library |
 | **Database** | SQLite via better-sqlite3 | 12.6.2 | Local embedded database with WAL mode |
-| **AI Engine** | OpenAI SDK | 6.25.0 | GPT-4o for content generation, Responses API for web search |
+| **AI — Posts & Agents** | OpenAI SDK | Latest | GPT-4o for content generation, Responses API for web search |
+| **AI — Carousel** | Anthropic SDK (`@anthropic-ai/sdk`) | Latest | claude-sonnet-4-6 for carousel slide HTML generation |
+| **PDF Export** | html-to-image + jsPDF | Latest | Browser-side: renders slide divs → JPEG → stitches into PDF |
+| **Fonts** | Google Fonts (Bebas Neue + Inter) | — | Loaded globally in layout.tsx head; used in all carousel slides |
 | **Notifications** | Sonner | Latest | Toast notifications |
 | **Theming** | next-themes | Latest | Light/dark mode |
 | **Validation** | Zod | 4.3.6 | Schema validation |
@@ -124,6 +129,82 @@ For 9 web-search skills:                    For 9 standard skills:
 │  JSON extracted from    │                │  Direct JSON response   │
 │  response text          │                │                         │
 └─────────────────────────┘                └─────────────────────────┘
+```
+
+### Carousel Generation Workflow
+
+```
+Agent Catalog page loads
+        │
+        ▼
+Topic + Day + Slides fingerprint → 32-bit hash → check localStorage
+        │                                               │
+   Cache HIT                                      Cache MISS
+        │                                               │
+        ▼                                               ▼
+Render cached HTML slides              POST /api/agents/carousel-html
+(no Claude API call)                           │
+                                               ▼
+                                  claude-sonnet-4-6 generates 5 slides
+                                  in parallel (Promise.all)
+                                  Each slide: archetype-routed HTML
+                                  (COVER / LIST / STAT / QUOTE / CTA)
+                                               │
+                                               ▼
+                                  Store in localStorage by hash
+                                               │
+                                               ▼
+                                  Render in HtmlSlidePreview frames
+                                               │
+                        ┌──────────────────────┘
+                        │
+               User clicks Download PDF
+                        │
+                        ▼
+         Show overlay (z-index:99998, ink background)
+                        │
+         For each slide:
+           1. Strip <link> tags from HTML (CORS prevention)
+           2. Append div at z-index:99999 (must be in viewport)
+           3. Wait 200ms for fonts + layout paint
+           4. toJpeg(div, { pixelRatio:1, quality:0.95 })
+           5. Remove div (in inner finally block)
+           6. jsPDF.addImage(jpeg, "JPEG", 0, 0, 1080, 1350)
+                        │
+                        ▼
+         doc.save("topic-carousel.pdf")
+         Remove overlay (outer finally block)
+```
+
+### POZ Design System — Carousel Rules
+
+```
+CANVASES:
+  COVER  → background: #050517 (Ink)
+  LIST   → background: #FFFFFF (White)
+  STAT   → background: #FFFFFF (White)
+  QUOTE  → background: #050517 (Ink)
+  CTA    → background: #009FF0 (Blue)
+
+FONTS:
+  Display  → Bebas Neue 400  (titles, eyebrows, numbers, counters)
+  Body     → Inter 400/600/700 (paragraphs, list rows, sub-labels)
+
+FONT SIZES:
+  185px Bebas Neue → stat number
+  144px Bebas Neue → cover / CTA headline
+  120px Bebas Neue → content slide headline
+  100px Bebas Neue → quote archetype
+   40px Bebas Neue → list row numbers
+   28px Bebas Neue → eyebrow chips, counter, handle tags
+   36px Inter 700  → list row primary text
+   32px Inter 400  → footer body paragraph
+   26px Inter 400  → list row sub-text
+
+RULES: No gradients. No blur. No colored box-shadows. 
+       Spacing multiples of 8. Border-radius max 8px (4px chips).
+       All children in flexbox — no position:absolute.
+       Eyebrow chips: white-space:nowrap.
 ```
 
 ### State Management
@@ -274,11 +355,20 @@ draft ──► in_review ──► ready_for_design ──► with_designer ─
 | Method | Endpoint | Input | Output |
 |--------|----------|-------|--------|
 | `POST` | `/api/agents/generate` | `{ skillId, inputs }` | Skill-specific JSON (see Section 8) |
+| `POST` | `/api/agents/carousel-html` | `{ slides: Slide[], topic: string }` | `{ slides: SlideWithHtml[] }` — each slide has `slideHtml` (full 1080×1350px HTML string) |
 | `GET` | `/api/agents/outputs` | Query: `agent_id`, `skill_id`, `status`, `created_by`, `search` | `AgentOutput[]` |
 | `POST` | `/api/agents/outputs` | `{ agent_id, skill_id, title, input_params, output_json, created_by }` | `AgentOutput` (status: draft) |
 | `GET` | `/api/agents/outputs/[id]` | Path: `id` | `AgentOutput` |
 | `PUT` | `/api/agents/outputs/[id]` | `{ title?, output_json?, status? }` | Updated `AgentOutput` |
 | `DELETE` | `/api/agents/outputs/[id]` | Path: `id` | `{ success: true }` |
+
+#### `/api/agents/carousel-html` — Carousel HTML Generator
+
+- **Engine**: Anthropic claude-sonnet-4-6 (`@anthropic-ai/sdk`), `max_tokens: 8096`
+- **Parallelism**: All slides are generated simultaneously via `Promise.all`
+- **Archetype routing**: Each slide's `type` field maps to a template — `hook→COVER`, `list/reframe→LIST`, `stat/depth→STAT`, `quote/principle→QUOTE`, last slide→`CTA`
+- **Output**: Each slide returns a standalone `<div style="width:1080px;height:1350px">` with inline CSS, no external dependencies except Google Fonts `<link>` (stripped at PDF render time)
+- **Required env**: `ANTHROPIC_API_KEY`
 
 ### Other APIs
 
@@ -620,11 +710,12 @@ The Service Catalog (`/catalog`) maps the complete vision for the platform with 
 ## 10. File Structure
 
 ```
-poz-social_media_agent/
+poz-agent-main/
 ├── src/
 │   ├── app/                          # Next.js App Router pages & API
 │   │   ├── page.tsx                  # Root redirect → /dashboard
-│   │   ├── layout.tsx                # Root layout with providers
+│   │   ├── layout.tsx                # Root layout — loads Bebas Neue + Inter globally
+│   │   ├── globals.css               # Global styles
 │   │   ├── dashboard/page.tsx        # Dashboard with KPIs
 │   │   ├── posts/
 │   │   │   ├── page.tsx              # Posts list
@@ -632,14 +723,15 @@ poz-social_media_agent/
 │   │   │   └── [id]/page.tsx         # Post detail/editor
 │   │   ├── calendar/page.tsx         # Content calendar
 │   │   ├── templates/page.tsx        # Prompt template manager
-│   │   ├── catalog/page.tsx          # Service catalog browser
+│   │   ├── agent-catalog/page.tsx    # Carousel generator + PDF download
+│   │   ├── catalog/page.tsx          # Service catalog browser (149 skills)
 │   │   ├── agents/
 │   │   │   ├── page.tsx              # Agents hub (3 cards)
 │   │   │   └── [agentId]/page.tsx    # Agent detail (6 skill tabs)
 │   │   ├── team/page.tsx             # Team management
 │   │   ├── settings/page.tsx         # App settings
 │   │   └── api/                      # API routes
-│   │       ├── generate/route.ts     # Post AI generation
+│   │       ├── generate/route.ts     # OpenAI post generation
 │   │       ├── posts/
 │   │       │   ├── route.ts          # GET/POST posts
 │   │       │   └── [id]/
@@ -647,7 +739,8 @@ poz-social_media_agent/
 │   │       │       ├── status/route.ts    # PATCH status
 │   │       │       └── revisions/route.ts # GET/POST revisions
 │   │       ├── agents/
-│   │       │   ├── generate/route.ts      # POST skill generation
+│   │       │   ├── generate/route.ts      # OpenAI skill generation (18 skills)
+│   │       │   ├── carousel-html/route.ts # Claude carousel HTML generator ★
 │   │       │   └── outputs/
 │   │       │       ├── route.ts           # GET/POST outputs
 │   │       │       └── [id]/route.ts      # GET/PUT/DELETE output
@@ -663,9 +756,9 @@ poz-social_media_agent/
 │   │
 │   ├── components/
 │   │   ├── layout/
-│   │   │   ├── sidebar.tsx           # Navigation sidebar (9 items)
-│   │   │   └── header.tsx            # Page header
-│   │   ├── ui/                       # shadcn/ui components (18 components)
+│   │   │   ├── sidebar.tsx           # Navigation sidebar
+│   │   │   └── shell.tsx             # App shell wrapper
+│   │   ├── ui/                       # shadcn/ui components
 │   │   ├── posts/
 │   │   │   ├── post-status-badge.tsx
 │   │   │   └── post-type-badge.tsx
@@ -702,7 +795,7 @@ poz-social_media_agent/
 │   │   │   ├── settings.ts           # Key-value settings
 │   │   │   └── agent-outputs.ts      # Agent output CRUD
 │   │   ├── ai/
-│   │   │   └── generate.ts           # Post generation (Chat Completions)
+│   │   │   └── generate.ts           # Post generation (OpenAI Chat Completions)
 │   │   ├── agents/
 │   │   │   ├── types.ts              # AgentId, SkillId, AgentOutput types
 │   │   │   ├── constants.ts          # 3 agents, 18 skills metadata
@@ -714,18 +807,36 @@ poz-social_media_agent/
 │   │   └── workflow.ts               # Workflow utilities
 │   │
 │   └── providers/
-│       └── user-provider.tsx          # React Context for current user
+│       └── user-provider.tsx         # React Context for current user
+│
+├── Point One Zero Design System/     # Brand reference files (fonts, colors, layout)
+│   ├── colors_and_type.css           # CSS variables for brand tokens
+│   └── preview/                      # HTML preview files per component
+│
+├── public/
+│   └── carousel-sample.html          # 5-slide POZ carousel visual reference
 │
 ├── data/
-│   └── social-media-agent.db         # SQLite database file
+│   └── social-media-agent.db         # SQLite database (auto-created)
 │
-├── package.json                       # Dependencies & scripts
-├── tsconfig.json                      # TypeScript config
-├── next.config.ts                     # Next.js config (sqlite external)
-├── tailwind.config.ts                 # Tailwind CSS config
-├── .env.local                         # OPENAI_API_KEY
-└── DOCUMENTATION.md                   # This file
+├── package.json                      # Dependencies & scripts
+├── tsconfig.json                     # TypeScript config
+├── next.config.ts                    # Next.js config (sqlite + @anthropic-ai/sdk external)
+├── tailwind.config.ts                # Tailwind CSS config
+├── .env.local                        # OPENAI_API_KEY + ANTHROPIC_API_KEY
+├── README.md                         # Quick start guide
+└── DOCUMENTATION.md                  # Full reference (this file)
 ```
+
+### Key Files — Carousel System
+
+| File | Purpose |
+|------|---------|
+| `src/app/api/agents/carousel-html/route.ts` | Anthropic API handler — archetype routing, 5 reference HTML templates, SYSTEM_PROMPT with POZ design rules, `buildSlidePrompt()` per archetype |
+| `src/app/agent-catalog/page.tsx` | Carousel UI — `generateClaudeHtml()`, localStorage cache, `HtmlSlidePreview`, `downloadPdf()`, color override, redesign/retry buttons |
+| `src/app/layout.tsx` | Loads Bebas Neue + Inter globally in `<head>` — critical for font availability before any carousel renders |
+| `public/carousel-sample.html` | 5-slide static preview showing the exact POZ design output expected from Claude |
+| `Point One Zero Design System/` | Brand source of truth — used to author the SYSTEM_PROMPT reference HTML |
 
 ---
 
@@ -733,11 +844,12 @@ poz-social_media_agent/
 
 ### Required Environment Variables
 
-| Variable | Description | Example |
-|----------|-------------|---------|
-| `OPENAI_API_KEY` | OpenAI API key for GPT-4o | `sk-proj-...` |
+| Variable | Required | Description | Example |
+|----------|----------|-------------|---------|
+| `OPENAI_API_KEY` | Yes | GPT-4o for post generation and 18 agent skills | `sk-proj-...` |
+| `ANTHROPIC_API_KEY` | Yes | claude-sonnet-4-6 for carousel HTML generation | `sk-ant-...` |
 
-The API key can also be set via the Settings page (stored in `app_settings` table), which overrides the environment variable.
+The OpenAI key can also be set via the Settings page (stored in `app_settings` table), which overrides the environment variable. The Anthropic key must be in `.env.local` — it is server-side only and never exposed to the browser.
 
 ### App Settings (Configurable via UI)
 
@@ -796,4 +908,5 @@ On first database initialization, the following data is automatically seeded:
 
 ---
 
-*Generated on March 13, 2026 | POZ Social Media Agent v0.1.0*
+*Updated May 7, 2026 | POZ Social Media Agent v0.2.0*
+*v0.2.0 additions: LinkedIn Carousel Generator (Claude claude-sonnet-4-6), POZ Design System integration, PDF download, localStorage caching, carousel-html API route*

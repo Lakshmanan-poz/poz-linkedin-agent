@@ -1,0 +1,7 @@
+<svg viewBox="0 0 110 110" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Two overlapping rounded squares, blue with black intersection -->
+  <rect x="0" y="27" width="83" height="83" rx="16" fill="#009FF0"/>
+  <rect x="27" y="0" width="83" height="83" rx="16" fill="#009FF0"/>
+  <!-- Black intersection overlay -->
+  <rect x="27" y="27" width="56" height="56" rx="10" fill="#000000"/>
+</svg>

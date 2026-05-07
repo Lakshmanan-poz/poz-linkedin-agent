@@ -1,0 +1,247 @@
+/* ============================================================
+   Point One Zero — Colors & Type Tokens
+   ------------------------------------------------------------
+   Source of truth for every POZ design artifact.
+   Import this file first; everything else builds on it.
+   ============================================================ */
+
+/* Fonts — Bebas Neue (display/headers) + Inter (body)
+   Substitution note: loaded from Google Fonts. The brand
+   guide specifies Bebas Neue and Inter exactly — these are
+   the real families, not substitutes. */
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700&display=swap');
+
+:root {
+  /* -------- Brand color — the two blues that define POZ -------- */
+  --poz-blue:            #009FF0;  /* primary  — "cyan blue"    */
+  --poz-blue-electric:   #0041E6;  /* accent   — "electric blue" */
+
+  /* -------- Ink — near-black with a blue cast -------- */
+  --poz-ink:             #050517;  /* foreground / bg dark     */
+
+  /* -------- Neutral ramp (light → dark) -------- */
+  --poz-white:           #FFFFFF;
+  --poz-n-50:            #F6F6F6;
+  --poz-n-100:           #EEEEEE;
+  --poz-n-200:           #D9D9D9;
+  --poz-n-300:           #BEBEC9;
+  --poz-n-400:           #848492;
+  --poz-n-500:           #555562;
+  --poz-n-600:           #292937;
+  --poz-n-700:           #050517;  /* = ink */
+
+  /* -------- Semantic: foreground -------- */
+  --fg-1:                var(--poz-ink);      /* primary text on light */
+  --fg-2:                var(--poz-n-500);    /* secondary text        */
+  --fg-3:                var(--poz-n-400);    /* tertiary / meta       */
+  --fg-muted:            var(--poz-n-300);    /* disabled / hint       */
+  --fg-on-dark:          var(--poz-white);
+  --fg-on-dark-2:        var(--poz-n-200);
+  --fg-on-dark-3:        var(--poz-n-400);
+  --fg-brand:            var(--poz-blue);
+  --fg-accent:           var(--poz-blue-electric);
+
+  /* -------- Semantic: background -------- */
+  --bg-1:                var(--poz-white);    /* default page          */
+  --bg-2:                var(--poz-n-50);     /* subtle surface        */
+  --bg-3:                var(--poz-n-100);    /* raised surface        */
+  --bg-dark:             var(--poz-ink);      /* dark section          */
+  --bg-brand:            var(--poz-blue);
+  --bg-accent:           var(--poz-blue-electric);
+
+  /* -------- Semantic: border -------- */
+  --border-1:            var(--poz-n-200);
+  --border-2:            var(--poz-n-300);
+  --border-dark:         var(--poz-n-600);
+
+  /* -------- Type families -------- */
+  --font-display:        'Bebas Neue', 'Impact', 'Oswald', sans-serif;
+  --font-body:           'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono:           ui-monospace, 'SF Mono', Menlo, monospace;
+
+  /* -------- Type scale (from brand guide, px) --------
+     Display / Headers are Bebas Neue, tight line-height.
+     Body is Inter.                                              */
+  --fs-d1:               185px;
+  --fs-d2:               144px;
+  --fs-h1:               120px;
+  --fs-h2:               100px;
+  --fs-caption:          30px;    /* caption is uppercase tracked */
+  --fs-body-1:           44px;
+  --fs-body-2:           27px;
+  --fs-body-3:           21px;
+  --fs-body-4:           16px;    /* guide shows 10px; bumped for web legibility */
+
+  /* Practical sub-scale for web UI (not in the guide but derived
+     by halving / adjusting the display values for app contexts) */
+  --fs-ui-display:       72px;
+  --fs-ui-h1:            56px;
+  --fs-ui-h2:            40px;
+  --fs-ui-h3:            28px;
+  --fs-ui-h4:            20px;
+  --fs-ui-body:          16px;
+  --fs-ui-small:         14px;
+  --fs-ui-caption:       12px;
+
+  /* -------- Tracking (letter-spacing) -------- */
+  --tracking-display:    0em;       /* D1 / H1 */
+  --tracking-tight:      -0.01em;   /* body 1-4 */
+  --tracking-normal:     0em;
+  --tracking-caption:    0.10em;    /* CAPTION uppercase */
+  --tracking-eyebrow:    0.16em;    /* small uppercase labels */
+
+  /* -------- Leading (line-height) -------- */
+  --leading-display:     1.00;     /* D1/D2/H1 */
+  --leading-h2:          1.02;
+  --leading-tight:       1.10;
+  --leading-body:        1.20;     /* guide body spec */
+  --leading-prose:       1.50;     /* generous — guide says "line spacing must be generous" */
+
+  /* -------- Weights -------- */
+  --fw-regular:          400;
+  --fw-medium:           500;
+  --fw-semibold:         600;
+  --fw-bold:             700;
+
+  /* -------- Spacing (multiples of 8 — mandated by guide) -------- */
+  --s-0:                 0;
+  --s-1:                 8px;
+  --s-2:                 16px;
+  --s-3:                 24px;
+  --s-4:                 32px;
+  --s-5:                 40px;
+  --s-6:                 48px;
+  --s-7:                 64px;
+  --s-8:                 80px;
+  --s-9:                 96px;
+  --s-10:                128px;
+  --s-11:                160px;
+  --s-12:                200px;
+
+  /* -------- Radius — minimal, mostly square-ish -------- */
+  --radius-0:            0;
+  --radius-sm:           2px;
+  --radius-md:           4px;
+  --radius-lg:           8px;
+  --radius-xl:           16px;
+  --radius-pill:         9999px;
+  --radius-logo:         12%;      /* logo-mark inner corner proportion */
+
+  /* -------- Elevation — restrained, mostly flat -------- */
+  --shadow-0:            none;
+  --shadow-1:            0 1px 2px rgba(5, 5, 23, 0.06);
+  --shadow-2:            0 2px 8px rgba(5, 5, 23, 0.08);
+  --shadow-3:            0 8px 24px rgba(5, 5, 23, 0.10);
+  --shadow-focus:        0 0 0 3px rgba(0, 159, 240, 0.35);
+
+  /* -------- Motion -------- */
+  --dur-fast:            120ms;
+  --dur-base:            200ms;
+  --dur-slow:            400ms;
+  --ease-out:            cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-in-out:         cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* -------- Grid — from brand guide -------- */
+  --grid-linkedin-margin:  40px;
+  --grid-story-margin-x:   40px;
+  --grid-story-margin-y:   250px;
+  --grid-gutter:           24px;
+  --grid-rows:             4;
+  --grid-cols:             2;
+}
+
+/* ============================================================
+   Semantic elements — applied to real tags so raw HTML
+   already looks on-brand without utility classes.
+   ============================================================ */
+
+html, body {
+  background: var(--bg-1);
+  color: var(--fg-1);
+  font-family: var(--font-body);
+  font-size: var(--fs-ui-body);
+  line-height: var(--leading-prose);
+  letter-spacing: var(--tracking-tight);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+h1, .h1, .poz-h1 {
+  font-family: var(--font-display);
+  font-size: var(--fs-h1);
+  line-height: var(--leading-display);
+  letter-spacing: var(--tracking-display);
+  font-weight: 400;   /* Bebas Neue has one weight */
+  text-transform: uppercase;
+  margin: 0;
+}
+h2, .h2, .poz-h2 {
+  font-family: var(--font-display);
+  font-size: var(--fs-h2);
+  line-height: var(--leading-h2);
+  letter-spacing: 0.02em;
+  font-weight: 400;
+  text-transform: uppercase;
+  margin: 0;
+}
+h3, .poz-h3 {
+  font-family: var(--font-display);
+  font-size: var(--fs-ui-h2);
+  line-height: var(--leading-tight);
+  text-transform: uppercase;
+  font-weight: 400;
+  margin: 0;
+}
+h4, .poz-h4 {
+  font-family: var(--font-body);
+  font-size: var(--fs-ui-h4);
+  line-height: var(--leading-tight);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--tracking-tight);
+  margin: 0;
+}
+p, .poz-body {
+  font-family: var(--font-body);
+  font-size: var(--fs-ui-body);
+  line-height: var(--leading-prose);
+  letter-spacing: var(--tracking-tight);
+  color: var(--fg-1);
+  margin: 0;
+}
+.poz-display-1 {
+  font-family: var(--font-display);
+  font-size: var(--fs-d1);
+  line-height: var(--leading-display);
+  text-transform: uppercase;
+  letter-spacing: 0;
+}
+.poz-display-2 {
+  font-family: var(--font-display);
+  font-size: var(--fs-d2);
+  line-height: var(--leading-display);
+  text-transform: uppercase;
+  letter-spacing: -0.01em;
+}
+.poz-caption, caption {
+  font-family: var(--font-display);   /* guide: caption uses display face, 30px */
+  font-size: var(--fs-caption);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-caption);
+  line-height: 1;
+}
+.poz-eyebrow {
+  font-family: var(--font-body);
+  font-size: var(--fs-ui-caption);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-eyebrow);
+  font-weight: var(--fw-semibold);
+  color: var(--fg-3);
+}
+code, kbd, samp, pre {
+  font-family: var(--font-mono);
+  font-size: 0.95em;
+}
+
+/* strong italic — used heavily in the brand's copy style */
+em, i { font-style: italic; }
+strong, b { font-weight: var(--fw-bold); }

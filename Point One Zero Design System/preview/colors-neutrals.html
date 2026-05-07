@@ -1,0 +1,46 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<title>Neutral ramp</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<link rel="stylesheet" href="_card.css">
+<style>
+  .ramp { display: grid; grid-template-columns: repeat(9, 1fr); }
+  .cell {
+    aspect-ratio: 1 / 1.4;
+    padding: 12px 10px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+  .cell .hex {
+    font-family: var(--font-display);
+    font-size: 15px;
+    letter-spacing: 0.04em;
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+    align-self: flex-start;
+  }
+  .cell .num {
+    font-family: var(--font-body);
+    font-size: 10px;
+    font-weight: 600;
+    opacity: .55;
+    letter-spacing: .1em;
+  }
+</style></head>
+<body>
+  <div class="card" style="padding: 20px;">
+    <div class="eyebrow">Neutral Ramp · Light → Dark</div>
+    <div class="ramp">
+      <div class="cell" style="background:#FFFFFF;color:#050517;border:1px solid #eee;"><span class="num">00</span><span class="hex">#FFFFFF</span></div>
+      <div class="cell" style="background:#F6F6F6;color:#050517;"><span class="num">50</span><span class="hex">#F6F6F6</span></div>
+      <div class="cell" style="background:#EEEEEE;color:#050517;"><span class="num">100</span><span class="hex">#EEEEEE</span></div>
+      <div class="cell" style="background:#D9D9D9;color:#050517;"><span class="num">200</span><span class="hex">#D9D9D9</span></div>
+      <div class="cell" style="background:#BEBEC9;color:#050517;"><span class="num">300</span><span class="hex">#BEBEC9</span></div>
+      <div class="cell" style="background:#848492;color:#fff;"><span class="num">400</span><span class="hex">#848492</span></div>
+      <div class="cell" style="background:#555562;color:#fff;"><span class="num">500</span><span class="hex">#555562</span></div>
+      <div class="cell" style="background:#292937;color:#fff;"><span class="num">600</span><span class="hex">#292937</span></div>
+      <div class="cell" style="background:#050517;color:#fff;"><span class="num">700</span><span class="hex">#050517</span></div>
+    </div>
+  </div>
+</body></html>

@@ -1,0 +1,61 @@
+/* Shared styles for design-system preview cards.
+   Every card is ~700px wide; height varies. Import colors_and_type.css first. */
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: #fff;
+  overflow: hidden;
+}
+.card {
+  width: 700px;
+  box-sizing: border-box;
+  padding: 24px;
+  background: var(--bg-1);
+  color: var(--fg-1);
+  font-family: var(--font-body);
+}
+.card--dark {
+  background: var(--bg-dark);
+  color: var(--fg-on-dark);
+}
+.card--brand {
+  background: var(--poz-blue);
+  color: #fff;
+}
+.eyebrow {
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--fg-3);
+  margin: 0 0 16px;
+}
+.card--dark .eyebrow { color: var(--poz-n-400); }
+.card--brand .eyebrow { color: rgba(255,255,255,.75); }
+
+.row { display: flex; gap: 16px; align-items: stretch; }
+.swatch {
+  flex: 1;
+  min-height: 88px;
+  border-radius: 2px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  box-sizing: border-box;
+  border: 1px solid transparent;
+}
+.swatch .hex {
+  font-family: var(--font-body);
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 0.02em;
+}
+.swatch .name {
+  font-family: var(--font-body);
+  font-size: 11px;
+  opacity: .7;
+  margin-top: 2px;
+}

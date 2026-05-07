@@ -1,0 +1,255 @@
+/* Marketing site styles — consumes tokens from /colors_and_type.css */
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: var(--bg-1); }
+
+/* ---------- Buttons ---------- */
+.poz-btn {
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 14px;
+  letter-spacing: -0.01em;
+  padding: 12px 20px;
+  border-radius: 4px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 180ms cubic-bezier(.2,.8,.2,1);
+  line-height: 1;
+}
+.poz-btn--primary { background: #050517; color: #fff; }
+.poz-btn--primary:hover { background: #292937; }
+.poz-btn--brand { background: #009FF0; color: #fff; }
+.poz-btn--brand:hover { background: #0041E6; }
+.poz-btn--ghost { background: transparent; color: #050517; border-color: #D9D9D9; }
+.poz-btn--ghost:hover { border-color: #050517; }
+.poz-btn--ghost-dark { background: transparent; color: #fff; border-color: rgba(255,255,255,.3); }
+.poz-btn--ghost-dark:hover { border-color: #fff; }
+.poz-btn--full { width: 100%; padding: 16px; font-size: 15px; }
+
+.poz-eyebrow-sm {
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  color: var(--fg-3);
+}
+
+/* ---------- Nav ---------- */
+.poz-nav {
+  position: sticky; top: 0; z-index: 20;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 48px;
+  background: rgba(255,255,255,.94);
+  backdrop-filter: saturate(1.4);
+  border-bottom: 1px solid #EEEEEE;
+  height: 72px;
+}
+.poz-nav__brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: inherit; }
+.poz-nav__brand img { width: 24px; height: 24px; }
+.poz-nav__brand span { font-family: var(--font-display); font-size: 20px; text-transform: uppercase; letter-spacing: .02em; }
+.poz-nav__links { display: flex; gap: 32px; }
+.poz-nav__links a { font-family: var(--font-body); font-size: 13px; color: #050517; text-decoration: none; font-weight: 500; letter-spacing: -0.01em; }
+.poz-nav__links a.active { color: #009FF0; }
+.poz-nav__links a:hover { color: #0041E6; }
+
+/* ---------- Hero ---------- */
+.poz-hero {
+  background: #050517;
+  color: #fff;
+  padding: 128px 48px 96px;
+  position: relative;
+  overflow: hidden;
+}
+.poz-hero__eyebrow {
+  font-family: var(--font-body);
+  font-size: 12px; font-weight: 600; letter-spacing: .18em;
+  text-transform: uppercase; color: #848492;
+  margin-bottom: 32px;
+}
+.poz-hero__title {
+  font-family: var(--font-display);
+  font-size: clamp(64px, 9vw, 140px);
+  line-height: .95;
+  letter-spacing: 0;
+  text-transform: uppercase;
+  margin: 0 0 32px;
+  max-width: 1200px;
+}
+.poz-hero__title em { font-style: normal; color: #009FF0; }
+.poz-hero__lede {
+  font-family: var(--font-body);
+  font-size: 20px;
+  line-height: 1.5;
+  letter-spacing: -0.01em;
+  max-width: 640px;
+  color: rgba(255,255,255,.82);
+  margin: 0 0 40px;
+}
+.poz-hero__lede strong em { color: #fff; font-weight: 700; }
+.poz-hero__ctas { display: flex; gap: 12px; margin-bottom: 80px; }
+.poz-hero__foot { display: flex; align-items: center; gap: 32px; padding-top: 40px; border-top: 1px solid #292937; }
+.poz-hero__logos { display: flex; gap: 40px; flex-wrap: wrap; }
+.poz-hero__logos span {
+  font-family: var(--font-display);
+  font-size: 20px; text-transform: uppercase; letter-spacing: .04em;
+  color: rgba(255,255,255,.5);
+}
+
+/* ---------- Sections ---------- */
+.poz-section { padding: 96px 48px; background: #fff; }
+.poz-section--light { background: #F6F6F6; }
+.poz-section--dark { background: #050517; color: #fff; }
+.poz-section__head { max-width: 1200px; margin: 0 auto 48px; }
+.poz-section__title {
+  font-family: var(--font-display);
+  font-size: clamp(48px, 6vw, 100px);
+  line-height: 1;
+  text-transform: uppercase;
+  margin: 12px 0 0;
+}
+
+/* ---------- Work grid ---------- */
+.poz-work-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 16px;
+  max-width: 1200px; margin: 0 auto;
+}
+.poz-tile {
+  aspect-ratio: 5/4;
+  padding: 32px;
+  display: flex; flex-direction: column; justify-content: space-between;
+  text-decoration: none;
+  border-radius: 4px;
+  position: relative;
+  transition: transform 200ms cubic-bezier(.2,.8,.2,1);
+  overflow: hidden;
+}
+.poz-tile:hover { transform: translateY(-4px); }
+.poz-tile--blue { background: #009FF0; color: #fff; }
+.poz-tile--ink { background: #050517; color: #fff; }
+.poz-tile--electric { background: #0041E6; color: #fff; }
+.poz-tile--neutral { background: #EEEEEE; color: #050517; }
+.poz-tile__meta {
+  display: flex; justify-content: space-between;
+  font-family: var(--font-body); font-size: 11px;
+  font-weight: 600; letter-spacing: .14em; text-transform: uppercase;
+  opacity: .75;
+}
+.poz-tile__name {
+  font-family: var(--font-display);
+  font-size: 72px; line-height: 1; text-transform: uppercase;
+  margin-top: auto;
+}
+.poz-tile__blurb {
+  font-family: var(--font-body); font-size: 15px; line-height: 1.4;
+  letter-spacing: -0.01em; margin-top: 12px; max-width: 420px;
+  opacity: .9;
+}
+.poz-tile__arrow {
+  position: absolute; top: 32px; right: 32px;
+  font-family: var(--font-display); font-size: 28px;
+}
+
+/* modal */
+.poz-modal {
+  position: fixed; inset: 0; background: rgba(5,5,23,.72);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 40; padding: 48px;
+}
+.poz-modal__box {
+  background: #fff; color: #050517; padding: 48px; max-width: 520px;
+  border-radius: 4px;
+}
+.poz-modal__title { font-family: var(--font-display); font-size: 56px; text-transform: uppercase; line-height: 1; margin: 12px 0 16px; }
+.poz-modal__blurb { font-family: var(--font-body); font-size: 16px; line-height: 1.5; color: #555562; margin: 0 0 24px; }
+
+/* ---------- Services ---------- */
+.poz-svc { max-width: 1200px; margin: 0 auto; border-top: 1px solid #D9D9D9; }
+.poz-svc__row {
+  display: grid; grid-template-columns: 80px 1fr 40px;
+  align-items: center; gap: 32px;
+  padding: 32px 0;
+  border-bottom: 1px solid #D9D9D9;
+  cursor: pointer;
+  transition: padding-left 200ms cubic-bezier(.2,.8,.2,1);
+}
+.poz-svc__row:hover { padding-left: 16px; }
+.poz-svc__row.is-open { padding-left: 16px; }
+.poz-svc__n {
+  font-family: var(--font-body); font-size: 13px; font-weight: 600;
+  letter-spacing: .14em; color: #848492;
+}
+.poz-svc__name {
+  font-family: var(--font-display); font-size: 56px;
+  text-transform: uppercase; line-height: 1;
+}
+.poz-svc__plus {
+  font-family: var(--font-display); font-size: 40px;
+  text-align: right; color: #848492;
+}
+.poz-svc__body {
+  grid-column: 2 / 3;
+  font-family: var(--font-body); font-size: 17px; line-height: 1.5;
+  color: #555562; letter-spacing: -0.01em;
+  max-width: 640px; margin-top: 12px;
+}
+
+/* ---------- Contact ---------- */
+.poz-contact { max-width: 1200px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 80px; }
+.poz-contact__title {
+  font-family: var(--font-display);
+  font-size: clamp(56px, 7vw, 112px);
+  text-transform: uppercase;
+  line-height: .95;
+  margin: 24px 0 24px;
+}
+.poz-contact__title em { font-style: normal; color: #009FF0; }
+.poz-contact__lede { font-family: var(--font-body); font-size: 17px; line-height: 1.5; color: rgba(255,255,255,.75); max-width: 420px; margin: 0 0 48px; }
+.poz-contact__lede strong em { color: #fff; font-weight: 700; }
+.poz-contact__meta { display: flex; flex-direction: column; gap: 20px; border-top: 1px solid #292937; padding-top: 32px; }
+.poz-contact__meta > div { font-family: var(--font-body); font-size: 16px; color: #fff; display: flex; flex-direction: column; gap: 4px; }
+.poz-contact__meta span { font-size: 11px; letter-spacing: .16em; text-transform: uppercase; color: #848492; font-weight: 600; }
+
+.poz-contact__form { background: #fff; color: #050517; padding: 40px; border-radius: 4px; }
+.poz-row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.poz-field { margin-bottom: 20px; display: flex; flex-direction: column; }
+.poz-label { font-family: var(--font-body); font-size: 11px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: #555562; margin-bottom: 8px; }
+.poz-input {
+  font-family: var(--font-body); font-size: 15px; color: #050517;
+  padding: 12px 14px;
+  background: #fff; border: 1px solid #D9D9D9; border-radius: 4px;
+  letter-spacing: -0.01em;
+  transition: all 180ms;
+}
+.poz-input:focus { outline: none; border-color: #009FF0; box-shadow: 0 0 0 3px rgba(0,159,240,.25); }
+.poz-contact__sent { padding: 24px 0; }
+.poz-contact__sent-title { font-family: var(--font-display); font-size: 56px; text-transform: uppercase; line-height: 1; margin: 12px 0 16px; }
+.poz-contact__sent p { font-family: var(--font-body); font-size: 16px; color: #555562; }
+
+/* ---------- Journal ---------- */
+.poz-journal { max-width: 1200px; margin: 0 auto; border-top: 1px solid #D9D9D9; }
+.poz-journal__row {
+  display: grid; grid-template-columns: 120px 1fr 1fr 40px;
+  align-items: baseline; gap: 24px;
+  padding: 24px 0;
+  border-bottom: 1px solid #D9D9D9;
+  text-decoration: none; color: inherit;
+  transition: padding-left 180ms;
+}
+.poz-journal__row:hover { padding-left: 12px; }
+.poz-journal__date { font-family: var(--font-body); font-size: 11px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: #848492; }
+.poz-journal__t { font-family: var(--font-display); font-size: 32px; text-transform: uppercase; line-height: 1; }
+.poz-journal__b { font-family: var(--font-body); font-size: 15px; color: #555562; letter-spacing: -0.01em; }
+.poz-journal__arr { font-family: var(--font-display); font-size: 24px; text-align: right; color: #848492; }
+
+/* ---------- Footer ---------- */
+.poz-footer {
+  background: #050517; color: #fff;
+  padding: 96px 48px 48px;
+  border-top: 1px solid #292937;
+}
+.poz-footer__mark { width: 360px; max-width: 60%; display: block; margin: 0 auto 80px; opacity: .92; }
+.poz-footer__rows { max-width: 1200px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 40px; padding-top: 32px; border-top: 1px solid #292937; }
+.poz-footer__rows > div { display: flex; flex-direction: column; gap: 6px; }
+.poz-footer__rows a, .poz-footer__rows span { color: rgba(255,255,255,.7); text-decoration: none; font-family: var(--font-body); font-size: 14px; letter-spacing: -0.01em; }
+.poz-footer__rows a:hover { color: #009FF0; }
