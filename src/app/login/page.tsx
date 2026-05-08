@@ -74,23 +74,57 @@ export default function LoginPage() {
           {/* Divider */}
           <div className="w-12 h-0.5 rounded-full mb-10 opacity-40" style={{ background: "#00AAEC" }} />
 
+          {/* Animated tagline */}
+          <style>{`
+            @keyframes poz-fade-up {
+              from { opacity: 0; transform: translateY(12px); }
+              to   { opacity: 1; transform: translateY(0); }
+            }
+            .poz-feature { animation: poz-fade-up 0.5s ease both; }
+          `}</style>
+
           {/* Feature list */}
           <div className="w-full flex flex-col gap-3">
             {[
-              { icon: "✦", label: "Generate LinkedIn posts with AI" },
-              { icon: "✦", label: "Team review & approval workflow" },
-              { icon: "✦", label: "Weekly content calendar & scheduling" },
-              { icon: "✦", label: "RAG — ask questions on your documents" },
+              { icon: "✦", label: "Generate LinkedIn posts with AI",      delay: "0ms" },
+              { icon: "✦", label: "Team review & approval workflow",       delay: "80ms" },
+              { icon: "✦", label: "Weekly content calendar & scheduling",  delay: "160ms" },
+              { icon: "✦", label: "RAG — ask questions on your documents", delay: "240ms" },
             ].map((f) => (
               <div
                 key={f.label}
-                className="flex items-center gap-3 px-4 py-3 rounded-xl text-left"
-                style={{ background: "rgba(0,170,236,0.10)", border: "1px solid rgba(0,170,236,0.20)" }}
+                className="poz-feature flex items-center gap-3 px-4 py-3 rounded-xl text-left"
+                style={{
+                  background: "rgba(0,170,236,0.10)",
+                  border: "1px solid rgba(0,170,236,0.20)",
+                  animationDelay: f.delay,
+                }}
               >
                 <span className="text-[#00AAEC] text-xs leading-none">{f.icon}</span>
                 <span className="text-[#cce9f8] text-sm">{f.label}</span>
               </div>
             ))}
+          </div>
+
+          {/* Team member count */}
+          <div
+            className="mt-4 flex items-center gap-2.5 px-4 py-2.5 rounded-xl w-full"
+            style={{ background: "rgba(0,170,236,0.08)", border: "1px solid rgba(0,170,236,0.15)" }}
+          >
+            <div className="flex -space-x-2">
+              {["L","M","S","G","Mg","Mw"].map((init, i) => (
+                <div
+                  key={i}
+                  className="w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold text-white border-2 border-[#003366]"
+                  style={{ background: ["#3b82f6","#8b5cf6","#10b981","#f59e0b","#ec4899","#06b6d4"][i] }}
+                >
+                  {init}
+                </div>
+              ))}
+            </div>
+            <p className="text-[#7dd3f8] text-xs font-medium">
+              <span className="text-white font-bold">6 team members</span> active on POZ
+            </p>
           </div>
         </div>
 

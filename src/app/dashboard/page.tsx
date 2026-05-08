@@ -23,6 +23,220 @@ import { useUser } from "@/providers/user-provider";
 import { AgentOutput } from "@/lib/agents/types";
 import { AGENTS } from "@/lib/agents/constants";
 
+/* ─── Hex colours (SVG can't use Tailwind classes) ──────────────────────────── */
+const STATUS_HEX: Record<string, string> = {
+  draft:               "#6b7280",
+  submitted:           "#ca8a04",
+  under_review:        "#ea580c",
+  changes_requested:   "#dc2626",
+  approved_for_design: "#2563eb",
+  design_in_progress:  "#7c3aed",
+  ready_to_publish:    "#059669",
+  published:           "#16a34a",
+};
+const TYPE_HEX: Record<string, string> = {
+  problem_solution: "#f97316",
+  educational:      "#3b82f6",
+  execution:        "#8b5cf6",
+  carousel:         "#ec4899",
+};
+
+/* ─── SVG Vertical Bar Chart ─────────────────────────────────────────────────── */
+function VerticalBarChart({
+  bars,
+  height = 130,
+}: {
+  bars: { label: string; value: number; color: string }[];
+  height?: number;
+}) {
+  if (bars.length === 0) return <p className="text-xs text-muted-foreground py-4 text-center">No data</p>;
+  const W      = 320;
+  const labelH = 24;
+  const pad    = 6;
+  const max    = Math.max(...bars.map(b => b.value), 1);
+  const slotW  = (W - pad * 2) / bars.length;
+  const barW   = Math.min(slotW * 0.6, 32);
+
+  return (
+    <svg viewBox={`0 0 ${W} ${height + labelH}`} style={{ width: "100%", height: height + labelH }}>
+      {bars.map((bar, i) => {
+        const x    = pad + i * slotW + (slotW - barW) / 2;
+        const barH = Math.max((bar.value / max) * (height - 20), bar.value > 0 ? 4 : 0);
+        const y    = height - barH;
+        return (
+          <g key={bar.label}>
+            {/* track */}
+            <rect x={x} y={0} width={barW} height={height} rx={5} fill="#f1f5f9" className="dark:opacity-10" />
+            {/* bar */}
+            {bar.value > 0 && (
+              <rect x={x} y={y} width={barW} height={barH} rx={5} fill={bar.color} opacity={0.88} />
+            )}
+            {/* value label */}
+            {bar.value > 0 && (
+              <text x={x + barW / 2} y={y - 4} textAnchor="middle" fontSize={9} fontWeight="700" fill={bar.color}>
+                {bar.value}
+              </text>
+            )}
+            {/* axis label */}
+            <text x={x + barW / 2} y={height + 16} textAnchor="middle" fontSize={8} fill="#9ca3af">
+              {bar.label.slice(0, 7)}
+            </text>
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
+/* ─── SVG Smooth Line Chart ──────────────────────────────────────────────────── */
+function SmoothLineChart({
+  points,
+  labels,
+  color = "#00AAEC",
+  gradId,
+  height = 110,
+}: {
+  points: number[];
+  labels: string[];
+  color?: string;
+  gradId: string;
+  height?: number;
+}) {
+  if (points.length < 2) return <p className="text-xs text-muted-foreground py-4 text-center">No data yet</p>;
+  const W   = 320;
+  const padX = 12;
+  const padY = 14;
+  const max  = Math.max(...points, 1);
+  const dx   = (W - padX * 2) / (points.length - 1);
+
+  const coords = points.map((v, i) => ({
+    x: padX + i * dx,
+    y: padY + (1 - v / max) * (height - padY * 2),
+  }));
+
+  /* Catmull-Rom → cubic bezier */
+  const linePath = coords.reduce((acc, pt, i) => {
+    if (i === 0) return `M ${pt.x.toFixed(1)},${pt.y.toFixed(1)}`;
+    const prev = coords[i - 1];
+    const cpx  = ((prev.x + pt.x) / 2).toFixed(1);
+    return `${acc} C ${cpx},${prev.y.toFixed(1)} ${cpx},${pt.y.toFixed(1)} ${pt.x.toFixed(1)},${pt.y.toFixed(1)}`;
+  }, "");
+
+  const last  = coords[coords.length - 1];
+  const first = coords[0];
+  const fillPath = `${linePath} L ${last.x},${height} L ${first.x},${height} Z`;
+
+  return (
+    <svg viewBox={`0 0 ${W} ${height + 20}`} style={{ width: "100%", height: height + 20 }}>
+      <defs>
+        <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%"   stopColor={color} stopOpacity="0.35" />
+          <stop offset="100%" stopColor={color} stopOpacity="0.02" />
+        </linearGradient>
+      </defs>
+      {/* horizontal grid lines */}
+      {[0, 0.5, 1].map(f => {
+        const gy = padY + (1 - f) * (height - padY * 2);
+        return <line key={f} x1={padX} y1={gy} x2={W - padX} y2={gy} stroke="#e5e7eb" strokeWidth={0.7} />;
+      })}
+      {/* fill */}
+      <path d={fillPath} fill={`url(#${gradId})`} />
+      {/* line */}
+      <path d={linePath} fill="none" stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+      {/* dots */}
+      {coords.map((pt, i) => (
+        <circle key={i} cx={pt.x} cy={pt.y} r="3.5" fill={color} stroke="#fff" strokeWidth="1.5" />
+      ))}
+      {/* axis labels */}
+      {labels.map((lbl, i) => (
+        <text key={i} x={coords[i].x} y={height + 14} textAnchor="middle" fontSize={8} fill="#9ca3af">
+          {lbl}
+        </text>
+      ))}
+    </svg>
+  );
+}
+
+/* ─── SVG Donut Chart ────────────────────────────────────────────────────────── */
+function DonutChart({
+  segments,
+  label,
+}: {
+  segments: { name: string; value: number; color: string }[];
+  label?: string;
+}) {
+  const total = segments.reduce((s, seg) => s + seg.value, 0) || 1;
+  const CX = 58, CY = 58, R = 48, r = 30;
+  let angle = -Math.PI / 2;
+
+  const arcs = segments.map(seg => {
+    const frac       = seg.value / total;
+    const startAngle = angle;
+    angle += frac * Math.PI * 2;
+    const endAngle   = angle;
+    const large      = frac > 0.5 ? 1 : 0;
+    const x1 = CX + R * Math.cos(startAngle), y1 = CY + R * Math.sin(startAngle);
+    const x2 = CX + R * Math.cos(endAngle),   y2 = CY + R * Math.sin(endAngle);
+    const xi1 = CX + r * Math.cos(startAngle), yi1 = CY + r * Math.sin(startAngle);
+    const xi2 = CX + r * Math.cos(endAngle),   yi2 = CY + r * Math.sin(endAngle);
+    return {
+      ...seg, frac,
+      path: `M${x1.toFixed(1)},${y1.toFixed(1)} A${R},${R} 0 ${large},1 ${x2.toFixed(1)},${y2.toFixed(1)} L${xi2.toFixed(1)},${yi2.toFixed(1)} A${r},${r} 0 ${large},0 ${xi1.toFixed(1)},${yi1.toFixed(1)} Z`,
+    };
+  });
+
+  return (
+    <div className="flex items-center gap-4">
+      <svg viewBox="0 0 116 116" style={{ width: 116, height: 116, flexShrink: 0 }}>
+        {arcs.map(arc => arc.frac > 0 && (
+          <path key={arc.name} d={arc.path} fill={arc.color} opacity={0.9} />
+        ))}
+        <text x={CX} y={CY - 5} textAnchor="middle" fontSize={16} fontWeight="700" fill="#374151">{total}</text>
+        <text x={CX} y={CY + 11} textAnchor="middle" fontSize={8.5} fill="#9ca3af">{label ?? "posts"}</text>
+      </svg>
+      <div className="space-y-1.5 flex-1 min-w-0">
+        {arcs.filter(a => a.value > 0).map(arc => (
+          <div key={arc.name} className="flex items-center gap-2">
+            <div className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: arc.color }} />
+            <span className="text-xs text-muted-foreground truncate flex-1">{arc.name}</span>
+            <span className="text-xs font-bold tabular-nums">{arc.value}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ─── Helpers ────────────────────────────────────────────────────────────────── */
+function relativeTime(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const m = Math.floor(diff / 60000);
+  if (m < 1)   return "just now";
+  if (m < 60)  return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24)  return `${h}h ago`;
+  const d = Math.floor(h / 24);
+  if (d < 7)   return `${d}d ago`;
+  return new Date(dateStr).toLocaleDateString();
+}
+
+/* Mini sparkline bar (5 fake bars proportional to value for visual effect) */
+function SparkBars({ value, color }: { value: number; color: string }) {
+  const heights = [30, 55, 40, 70, 50, 65, 45, 80, 60, 100];
+  const show = value > 0 ? heights : heights.map(() => 15);
+  return (
+    <div className="flex items-end gap-[2px] h-8">
+      {show.map((h, i) => (
+        <div
+          key={i}
+          className="w-[3px] rounded-full opacity-60 transition-all duration-700"
+          style={{ height: `${h}%`, background: color }}
+        />
+      ))}
+    </div>
+  );
+}
+
 /* ─── Confetti overlay (published celebration) ───────────────────────────────── */
 function ConfettiOverlay({ onDone }: { onDone: () => void }) {
   const [pieces] = useState(() => {
@@ -306,11 +520,15 @@ function AdminDashboard() {
       .catch(() => {});
   }, []);
 
+  const pbs = (stats?.postsByStatus ?? {}) as Record<string, number>;
+  const acceptedCount = (pbs.approved_for_design || 0) + (pbs.design_in_progress || 0) + (pbs.ready_to_publish || 0) + (pbs.published || 0);
+  const rejectedCount = pbs.changes_requested || 0;
+
   const KPI_CARDS = [
-    { label: "Total Posts",          value: stats?.totalPosts,         dot: "bg-primary",     num: "text-primary" },
-    { label: "This Week",            value: stats?.postsThisWeek,      dot: "bg-violet-500",  num: "text-violet-600 dark:text-violet-400" },
-    { label: "In Pipeline",          value: stats?.inPipeline,         dot: "bg-amber-500",   num: "text-amber-600 dark:text-amber-400" },
-    { label: "Published This Month", value: stats?.publishedThisMonth, dot: "bg-emerald-500", num: "text-emerald-600 dark:text-emerald-400" },
+    { label: "Total Posts",    value: stats?.totalPosts,         dot: "bg-primary",     num: "text-primary",                              spark: "#00AAEC" },
+    { label: "Monthly Posts",  value: stats?.publishedThisMonth, dot: "bg-violet-500",  num: "text-violet-600 dark:text-violet-400",       spark: "#8b5cf6" },
+    { label: "Accepted",       value: acceptedCount,             dot: "bg-emerald-500", num: "text-emerald-600 dark:text-emerald-400",     spark: "#10b981" },
+    { label: "Rejected",       value: rejectedCount,             dot: "bg-red-500",     num: "text-red-600 dark:text-red-400",             spark: "#ef4444" },
   ];
 
   if (!stats) {
@@ -343,130 +561,131 @@ function AdminDashboard() {
       {/* KPI row */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {KPI_CARDS.map((k) => (
-          <Card key={k.label} className="gap-0">
-            <CardContent className="px-5 py-5">
-              <div className="flex items-center gap-2 mb-3">
+          <Card key={k.label} className="gap-0 overflow-hidden">
+            <CardContent className="px-5 pt-5 pb-4">
+              <div className="flex items-center gap-2 mb-2">
                 <span className={`w-2 h-2 rounded-full shrink-0 ${k.dot}`} />
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{k.label}</p>
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider truncate">{k.label}</p>
               </div>
               <p className={`text-3xl font-bold tabular-nums ${k.num}`}>{k.value ?? 0}</p>
+              <div className="mt-3">
+                <SparkBars value={k.value ?? 0} color={k.spark} />
+              </div>
             </CardContent>
           </Card>
         ))}
       </div>
 
-      {/* Pipeline + by-type */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-base font-semibold">Pipeline Overview</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2.5">
-              {ALL_STATUSES.map((status) => {
-                const count = (stats.postsByStatus as Record<string, number>)[status] || 0;
-                const max = Math.max(...Object.values(stats.postsByStatus as Record<string, number>), 1);
-                return (
-                  <div key={status} className="flex items-center gap-3">
-                    <div className="w-36 shrink-0"><PostStatusBadge status={status as PostStatus} /></div>
-                    <div className="flex-1 bg-muted rounded-full h-2 overflow-hidden">
-                      <div className="h-full bg-primary rounded-full transition-all duration-500" style={{ width: `${(count / max) * 100}%` }} />
-                    </div>
-                    <span className="text-xs font-semibold tabular-nums w-6 text-right text-muted-foreground">{count}</span>
-                  </div>
-                );
-              })}
-            </div>
-          </CardContent>
-        </Card>
+      {/* Charts row — bar + line */}
+      {(() => {
+        const statusBars = ALL_STATUSES.map(s => ({
+          label: POST_STATUS_LABELS[s as PostStatus].split(" ")[0],
+          value: (stats.postsByStatus as Record<string, number>)[s] || 0,
+          color: STATUS_HEX[s],
+        }));
+        const today = new Date();
+        const days = Array.from({ length: 7 }, (_, i) => {
+          const d = new Date(today);
+          d.setDate(d.getDate() - (6 - i));
+          return d;
+        });
+        const dayLabels = days.map(d => d.toLocaleDateString("en", { weekday: "short" }));
+        const dayPoints = days.map(d =>
+          stats.recentActivity.filter(a => new Date(a.created_at).toDateString() === d.toDateString()).length
+        );
+        return (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base font-semibold">Posts by Status</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <VerticalBarChart bars={statusBars} height={140} />
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base font-semibold">7-Day Activity Trend</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <SmoothLineChart points={dayPoints} labels={dayLabels} color="#00AAEC" gradId="adminLineGrad" height={120} />
+              </CardContent>
+            </Card>
+          </div>
+        );
+      })()}
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-base font-semibold">Posts by Type</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2.5">
-              {ALL_POST_TYPES.map((type) => {
-                const count = (stats.postsByType as Record<string, number>)[type] || 0;
-                const max = Math.max(...Object.values(stats.postsByType as Record<string, number>), 1);
-                return (
-                  <div key={type} className="flex items-center gap-3">
-                    <div className="w-32 shrink-0 text-xs font-medium text-muted-foreground truncate">{POST_TYPE_LABELS[type as PostType]}</div>
-                    <div className="flex-1 bg-muted rounded-full h-2 overflow-hidden">
-                      <div className="h-full bg-violet-500 dark:bg-violet-400 rounded-full transition-all duration-500" style={{ width: `${(count / max) * 100}%` }} />
-                    </div>
-                    <span className="text-xs font-semibold tabular-nums w-6 text-right text-muted-foreground">{count}</span>
+      {/* Pipeline Overview — full width */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between pb-2">
+          <CardTitle className="text-base font-semibold">Pipeline Overview</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-10 gap-y-2.5">
+            {ALL_STATUSES.map((status) => {
+              const count = (stats.postsByStatus as Record<string, number>)[status] || 0;
+              const max = Math.max(...Object.values(stats.postsByStatus as Record<string, number>), 1);
+              return (
+                <div key={status} className="flex items-center gap-3">
+                  <div className="w-36 shrink-0"><PostStatusBadge status={status as PostStatus} /></div>
+                  <div className="flex-1 bg-muted rounded-full h-2 overflow-hidden">
+                    <div className="h-full bg-primary rounded-full transition-all duration-500" style={{ width: `${(count / max) * 100}%` }} />
                   </div>
-                );
-              })}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+                  <span className="text-xs font-semibold tabular-nums w-6 text-right text-muted-foreground">{count}</span>
+                </div>
+              );
+            })}
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Review queue */}
       <AdminReviewQueue />
 
-      {/* My agent activity */}
-      <MyAgentActivity />
-
-      {/* Team + recent activity */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-base font-semibold">Team Contributions</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {stats.teamContributions.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No posts created yet.</p>
-            ) : (
-              <div className="space-y-2">
-                <div className="grid grid-cols-3 text-xs font-medium text-muted-foreground pb-2 border-b">
-                  <span>Name</span>
-                  <span className="text-center">Created</span>
-                  <span className="text-center">Published</span>
-                </div>
-                {stats.teamContributions.map((tc) => (
-                  <div key={tc.name} className="grid grid-cols-3 text-sm py-1">
-                    <span className="font-medium">{tc.name}</span>
-                    <span className="text-center">{tc.posts_created}</span>
-                    <span className="text-center">{tc.posts_published}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-base font-semibold">Recent Activity</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {stats.recentActivity.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No activity yet.</p>
-            ) : (
+      {/* Team Contributions — full width */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between pb-2">
+          <CardTitle className="text-base font-semibold">Team Contributions</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {stats.teamContributions.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No posts created yet.</p>
+          ) : (() => {
+            const maxCreated = Math.max(...stats.teamContributions.map(tc => tc.posts_created), 1);
+            return (
               <div className="space-y-3">
-                {stats.recentActivity.map((activity) => (
-                  <div key={activity.id} className="flex items-start gap-2 text-sm">
-                    <div className="w-2 h-2 rounded-full bg-primary mt-1.5 shrink-0" />
-                    <div>
-                      <span className="font-medium">{activity.changed_by_name}</span>{" "}
-                      moved post to{" "}
-                      <span className="font-medium">
-                        {POST_STATUS_LABELS[activity.to_status as PostStatus] || activity.to_status}
-                      </span>
-                      <div className="text-xs text-muted-foreground">
-                        {new Date(activity.created_at).toLocaleString()}
+                {stats.teamContributions.map((tc) => (
+                  <div key={tc.name}>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-sm font-medium">{tc.name}</span>
+                      <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                        <span>{tc.posts_created} created</span>
+                        <span className="text-emerald-600 dark:text-emerald-400 font-medium">{tc.posts_published} published</span>
+                      </div>
+                    </div>
+                    <div className="flex gap-1 h-2">
+                      <div className="flex-1 bg-muted rounded-full overflow-hidden">
+                        <div className="h-full rounded-full bg-primary transition-all duration-700" style={{ width: `${(tc.posts_created / maxCreated) * 100}%` }} />
+                      </div>
+                      <div className="flex-1 bg-muted rounded-full overflow-hidden">
+                        <div className="h-full rounded-full bg-emerald-500 transition-all duration-700" style={{ width: `${(tc.posts_published / maxCreated) * 100}%` }} />
                       </div>
                     </div>
                   </div>
                 ))}
+                <div className="flex gap-4 pt-1">
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <div className="w-2 h-2 rounded-full bg-primary" /> Created
+                  </div>
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <div className="w-2 h-2 rounded-full bg-emerald-500" /> Published
+                  </div>
+                </div>
               </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+            );
+          })()}
+        </CardContent>
+      </Card>
 
     </div>
   );
@@ -542,6 +761,44 @@ function EmployeeDashboard() {
           </Card>
         ))}
       </div>
+
+      {/* Charts row — donut + bar */}
+      {!loading && (() => {
+        const donutSegs = ALL_STATUSES
+          .filter(s => (statusCounts[s] || 0) > 0)
+          .map(s => ({ name: POST_STATUS_LABELS[s as PostStatus], value: statusCounts[s] || 0, color: STATUS_HEX[s] }));
+        const typeCounts = posts.reduce<Record<string, number>>((acc, p) => {
+          acc[p.post_type] = (acc[p.post_type] || 0) + 1;
+          return acc;
+        }, {});
+        const typeBars = ALL_POST_TYPES.map(t => ({
+          label: POST_TYPE_LABELS[t as PostType].split(" ")[0],
+          value: typeCounts[t] || 0,
+          color: TYPE_HEX[t],
+        }));
+        return (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base font-semibold">My Posts by Status</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {donutSegs.length === 0
+                  ? <p className="text-xs text-muted-foreground py-4 text-center">No posts yet</p>
+                  : <DonutChart segments={donutSegs} label="my posts" />}
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base font-semibold">My Posts by Type</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <VerticalBarChart bars={typeBars} height={130} />
+              </CardContent>
+            </Card>
+          </div>
+        );
+      })()}
 
       {/* Changes requested alert — shown inline at top if any */}
       {posts.some((p) => p.status === "changes_requested") && (

@@ -19,7 +19,7 @@ function getArchetype(slide: Slide, total: number): "COVER" | "LIST" | "STAT" | 
 
 /* ─── Full HTML reference blocks per archetype ───────────────────────────────── */
 const REF_COVER = `<!-- ═══ ARCHETYPE A: COVER — INK canvas ═══ -->
-<div style="width:1080px;height:1350px;background:#050517;overflow:hidden;position:relative;font-family:'Inter',sans-serif;display:flex;flex-direction:column;padding:64px 64px 64px 64px;box-sizing:border-box;">
+<div style="width:1024px;height:1280px;background:#050517;overflow:hidden;position:relative;font-family:'Inter',sans-serif;display:flex;flex-direction:column;padding:64px 64px 64px 64px;box-sizing:border-box;">
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:ital,wght@0,400;0,500;0,600;0,700;1,700&display=swap" rel="stylesheet">
   <!-- top bar -->
   <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-shrink:0;">
@@ -29,20 +29,20 @@ const REF_COVER = `<!-- ═══ ARCHETYPE A: COVER — INK canvas ═══ --
   <!-- vertical spacer — push content to ~40% from top -->
   <div style="flex:1;min-height:160px;"></div>
   <!-- eyebrow chip -->
-  <span style="display:inline-block;background:#009FF0;color:#050517;font-family:'Bebas Neue',Impact,'Arial Narrow',sans-serif;font-size:28px;line-height:1;letter-spacing:0.10em;text-transform:uppercase;padding:10px 24px;border-radius:4px;width:fit-content;font-style:normal;white-space:nowrap;">HOOK</span>
+  <span style="display:inline-block;background:#009FF0;color:#050517;font-family:'Bebas Neue',Impact,'Arial Narrow',sans-serif;font-size:28px;line-height:1;letter-spacing:0.10em;text-transform:uppercase;padding:10px 24px;border-radius:4px;width:fit-content;max-width:820px;overflow:hidden;font-style:normal;white-space:nowrap;">HOOK</span>
   <div style="height:32px;flex-shrink:0;"></div>
-  <!-- title: Bebas Neue 144px, UPPERCASE, one phrase in #009FF0 -->
-  <div style="font-family:'Bebas Neue',Impact,'Arial Narrow',sans-serif;font-size:144px;line-height:1.0;letter-spacing:0;text-transform:uppercase;font-style:normal;color:#FFFFFF;">
+  <!-- ═ TITLE DIV — contains ONLY the Bebas Neue headline text and one <span> — NO <p> tags inside ═ -->
+  <div style="font-family:'Bebas Neue',Impact,'Arial Narrow',sans-serif;font-size:120px;line-height:1.0;letter-spacing:0;text-transform:uppercase;font-style:normal;color:#FFFFFF;flex-shrink:0;">
     AI AGENTS JUST<br><span style="color:#009FF0;">TOOK YOUR JOB.</span>
-  </div>
-  <div style="height:48px;flex-shrink:0;"></div>
-  <!-- body: Inter 36px, sentence case, left-aligned, max 15 words -->
-  <p style="font-family:'Inter',sans-serif;font-size:36px;line-height:1.5;letter-spacing:-0.01em;color:rgba(255,255,255,0.70);margin:0;font-weight:400;max-width:880px;">most teams are automating steps. the shift is agents owning entire workflows.</p>
+  </div><!-- ← TITLE DIV CLOSED HERE. The body <p> is a SIBLING below — NEVER a child of the title div -->
+  <div style="height:80px;flex-shrink:0;"></div>
+  <!-- ═ BODY <p> — DIRECT CHILD of root div, placed AFTER the 80px spacer above ═ -->
+  <p style="font-family:'Inter',sans-serif;font-size:36px;line-height:1.5;letter-spacing:-0.01em;color:rgba(255,255,255,0.70);margin:0;font-weight:400;max-width:880px;flex-shrink:0;">most teams are automating steps. the shift is agents owning entire workflows.</p>
   <div style="height:64px;flex-shrink:0;"></div>
 </div>`;
 
 const REF_LIST = `<!-- ═══ ARCHETYPE B: LIST — WHITE canvas ═══ -->
-<div style="width:1080px;height:1350px;background:#FFFFFF;overflow:hidden;position:relative;font-family:'Inter',sans-serif;display:flex;flex-direction:column;padding:64px 64px 64px 64px;box-sizing:border-box;">
+<div style="width:1024px;height:1280px;background:#FFFFFF;overflow:hidden;position:relative;font-family:'Inter',sans-serif;display:flex;flex-direction:column;padding:64px 64px 64px 64px;box-sizing:border-box;">
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:ital,wght@0,400;0,500;0,600;0,700;1,700&display=swap" rel="stylesheet">
   <!-- top bar -->
   <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-shrink:0;">
@@ -51,7 +51,7 @@ const REF_LIST = `<!-- ═══ ARCHETYPE B: LIST — WHITE canvas ═══ --
   </div>
   <div style="height:64px;flex-shrink:0;"></div>
   <!-- eyebrow chip: ink bg on white canvas -->
-  <span style="display:inline-block;background:#050517;color:#FFFFFF;font-family:'Bebas Neue',Impact,'Arial Narrow',sans-serif;font-size:28px;line-height:1;letter-spacing:0.10em;text-transform:uppercase;padding:10px 24px;border-radius:4px;width:fit-content;font-style:normal;white-space:nowrap;">REFRAME</span>
+  <span style="display:inline-block;background:#050517;color:#FFFFFF;font-family:'Bebas Neue',Impact,'Arial Narrow',sans-serif;font-size:28px;line-height:1;letter-spacing:0.10em;text-transform:uppercase;padding:10px 24px;border-radius:4px;width:fit-content;max-width:820px;overflow:hidden;font-style:normal;white-space:nowrap;">REFRAME</span>
   <div style="height:24px;flex-shrink:0;"></div>
   <!-- title: Bebas Neue 120px -->
   <div style="font-family:'Bebas Neue',Impact,'Arial Narrow',sans-serif;font-size:120px;line-height:1.0;letter-spacing:0;text-transform:uppercase;font-style:normal;color:#050517;">
@@ -91,7 +91,7 @@ const REF_LIST = `<!-- ═══ ARCHETYPE B: LIST — WHITE canvas ═══ --
 </div>`;
 
 const REF_STAT = `<!-- ═══ ARCHETYPE C: STAT — WHITE canvas ═══ -->
-<div style="width:1080px;height:1350px;background:#FFFFFF;overflow:hidden;position:relative;font-family:'Inter',sans-serif;display:flex;flex-direction:column;padding:64px 64px 64px 64px;box-sizing:border-box;">
+<div style="width:1024px;height:1280px;background:#FFFFFF;overflow:hidden;position:relative;font-family:'Inter',sans-serif;display:flex;flex-direction:column;padding:64px 64px 64px 64px;box-sizing:border-box;">
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:ital,wght@0,400;0,500;0,600;0,700;1,700&display=swap" rel="stylesheet">
   <!-- top bar -->
   <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-shrink:0;">
@@ -100,7 +100,7 @@ const REF_STAT = `<!-- ═══ ARCHETYPE C: STAT — WHITE canvas ═══ --
   </div>
   <div style="height:64px;flex-shrink:0;"></div>
   <!-- eyebrow chip: blue bg -->
-  <span style="display:inline-block;background:#009FF0;color:#FFFFFF;font-family:'Bebas Neue',Impact,'Arial Narrow',sans-serif;font-size:28px;line-height:1;letter-spacing:0.10em;text-transform:uppercase;padding:10px 24px;border-radius:4px;width:fit-content;font-style:normal;white-space:nowrap;">DEPTH</span>
+  <span style="display:inline-block;background:#009FF0;color:#FFFFFF;font-family:'Bebas Neue',Impact,'Arial Narrow',sans-serif;font-size:28px;line-height:1;letter-spacing:0.10em;text-transform:uppercase;padding:10px 24px;border-radius:4px;width:fit-content;max-width:820px;overflow:hidden;font-style:normal;white-space:nowrap;">DEPTH</span>
   <div style="height:24px;flex-shrink:0;"></div>
   <!-- title -->
   <div style="font-family:'Bebas Neue',Impact,'Arial Narrow',sans-serif;font-size:120px;line-height:1.0;letter-spacing:0;text-transform:uppercase;font-style:normal;color:#050517;">
@@ -120,7 +120,7 @@ const REF_STAT = `<!-- ═══ ARCHETYPE C: STAT — WHITE canvas ═══ --
 </div>`;
 
 const REF_QUOTE = `<!-- ═══ ARCHETYPE D: QUOTE — INK canvas ═══ -->
-<div style="width:1080px;height:1350px;background:#050517;overflow:hidden;position:relative;font-family:'Inter',sans-serif;display:flex;flex-direction:column;padding:64px 64px 64px 64px;box-sizing:border-box;">
+<div style="width:1024px;height:1280px;background:#050517;overflow:hidden;position:relative;font-family:'Inter',sans-serif;display:flex;flex-direction:column;padding:64px 64px 64px 64px;box-sizing:border-box;">
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:ital,wght@0,400;0,500;0,600;0,700;1,700&display=swap" rel="stylesheet">
   <!-- top bar -->
   <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-shrink:0;">
@@ -148,26 +148,27 @@ const REF_QUOTE = `<!-- ═══ ARCHETYPE D: QUOTE — INK canvas ═══ --
 </div>`;
 
 const REF_CTA = `<!-- ═══ ARCHETYPE E: CTA — BLUE canvas ═══ -->
-<div style="width:1080px;height:1350px;background:#009FF0;overflow:hidden;position:relative;font-family:'Inter',sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:64px 64px 64px 64px;box-sizing:border-box;text-align:center;">
+<div style="width:1024px;height:1280px;background:#009FF0;overflow:hidden;position:relative;font-family:'Inter',sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:64px 64px 64px 64px;box-sizing:border-box;text-align:center;">
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:ital,wght@0,400;0,500;0,600;0,700;1,700&display=swap" rel="stylesheet">
   <!-- centered logo: INK version, 96×96 -->
   <div style="width:96px;height:96px;flex-shrink:0;">${LOGO("#050517")}</div>
   <div style="height:48px;flex-shrink:0;"></div>
-  <!-- CTA title: Bebas Neue 144px, ink color, centered -->
-  <div style="font-family:'Bebas Neue',Impact,'Arial Narrow',sans-serif;font-size:144px;line-height:1.0;letter-spacing:0;text-transform:uppercase;font-style:normal;color:#050517;">
+  <!-- CTA title: Bebas Neue 120px, ink color, centered — EXACTLY 2 lines via EXACTLY 1 <br> -->
+  <!-- max-height:240px (2×120px) + overflow:hidden = hard cap at 2 lines regardless of <br> count -->
+  <div style="font-family:'Bebas Neue',Impact,'Arial Narrow',sans-serif;font-size:120px;line-height:1.0;letter-spacing:0;text-transform:uppercase;font-style:normal;color:#050517;flex-shrink:0;max-height:240px;overflow:hidden;">
     FOLLOW FOR MORE<br>SUCH INSIGHTS
   </div>
   <div style="height:24px;flex-shrink:0;"></div>
-  <!-- sub-line: Inter 32px, ink 65% opacity -->
-  <p style="font-family:'Inter',sans-serif;font-size:32px;font-weight:600;color:rgba(5,5,23,0.65);letter-spacing:-0.01em;margin:0;">hello@pointonezero.com</p>
+  <!-- sub-line: Inter 32px, ink 65% opacity — SIBLING of title div, NOT nested inside it -->
+  <p style="font-family:'Inter',sans-serif;font-size:32px;font-weight:600;color:rgba(5,5,23,0.65);letter-spacing:-0.01em;margin:0;flex-shrink:0;">hello@pointonezero.com</p>
   <div style="height:32px;flex-shrink:0;"></div>
   <!-- handle tag: ink bg, white text, Bebas Neue 28px, white-space:nowrap -->
-  <span style="display:inline-block;background:#050517;color:#FFFFFF;font-family:'Bebas Neue',Impact,'Arial Narrow',sans-serif;font-size:28px;line-height:1;letter-spacing:0.10em;text-transform:uppercase;padding:12px 40px;border-radius:4px;font-style:normal;white-space:nowrap;">POINT ONE ZERO</span>
+  <span style="display:inline-block;background:#050517;color:#FFFFFF;font-family:'Bebas Neue',Impact,'Arial Narrow',sans-serif;font-size:28px;line-height:1;letter-spacing:0.10em;text-transform:uppercase;padding:12px 40px;border-radius:4px;font-style:normal;white-space:nowrap;flex-shrink:0;">POINT ONE ZERO</span>
 </div>`;
 
 /* ─── System prompt ──────────────────────────────────────────────────────────── */
 const SYSTEM_PROMPT = `You are a senior visual designer at Point One Zero (POZ).
-Your only job: output production-ready HTML for a single 1080×1350px LinkedIn carousel slide.
+Your only job: output production-ready HTML for a single 1024×1280px LinkedIn carousel slide.
 
 ════════════════════════════════
 FONT RULES — NON-NEGOTIABLE
@@ -226,7 +227,7 @@ THREE CANVASES:
 ════════════════════════════════
 LAYOUT RULES — NON-NEGOTIABLE
 ════════════════════════════════
-- Root div: width:1080px; height:1350px; overflow:hidden; position:relative; box-sizing:border-box
+- Root div: width:1024px; height:1280px; overflow:hidden; position:relative; box-sizing:border-box
 - All padding is 64px on all four sides (pad:64px 64px 64px 64px)
 - Use display:flex; flex-direction:column on the root div
 - ALL spacing values must be multiples of 8 (8,16,24,32,40,48,56,64,80,96...)
@@ -240,7 +241,7 @@ LAYOUT RULES — NON-NEGOTIABLE
 - CTA slide is the ONLY slide where text is centered
 - NEVER use position:absolute, position:fixed, or position:sticky on any child element — flexbox only
 - NEVER nest a body <p> or Inter paragraph inside a title div — body text is ALWAYS a direct child of the root div, after the spacer div
-- Eyebrow chip: ALWAYS add white-space:nowrap; chip contains plain text only (no child elements); max 3 words
+- Eyebrow chip: ALWAYS add white-space:nowrap; max-width:820px; overflow:hidden; chip contains plain text only (no child elements); max 3 words
 - Handle chip on CTA: ALWAYS add white-space:nowrap to prevent wrapping
 
 ════════════════════════════════
@@ -277,22 +278,22 @@ function buildSlidePrompt(slide: Slide, total: number): string {
   const counter = `${String(slide.position).padStart(2, "0")} / ${String(total).padStart(2, "0")}`;
 
   const instructions: Record<string, string> = {
-    COVER: `Use ARCHETYPE A (COVER). Canvas: #050517. Logo: WHITE 56×56. Counter: "${counter}". Title: Bebas Neue 144px uppercase — max 3 lines. Eyebrow chip: 1–3 words ONLY, white-space:nowrap. Body <p>: Inter 36px — place AFTER the title div and after the height:48px spacer, as a DIRECT child of the root div (never inside the title div).`,
-    LIST:  `Use ARCHETYPE B (LIST). Canvas: #FFFFFF. Logo: BLUE 56×56. Counter: "${counter}". Title: Bebas Neue 120px uppercase. Eyebrow chip: 1–3 words ONLY, white-space:nowrap, NO line breaks, NO sub-labels beneath the chip. Extract 2–4 distinct items from the body and render them as numbered rows (number 40px Bebas blue, row title 36px Inter 700, sub-text 26px Inter 400). Footer: Inter 32px.`,
-    STAT:  `Use ARCHETYPE C (STAT). Canvas: #FFFFFF. Logo: BLUE 56×56. Counter: "${counter}". Title: Bebas Neue 120px uppercase. Eyebrow chip: 1–3 words ONLY, white-space:nowrap. Find the key metric in the body (number, %, $) — make it the 185px Bebas Neue stat. Label: Inter 32px 600. Context: Inter 26px 400. Footer: Inter 32px.`,
+    COVER: `Use ARCHETYPE A (COVER). Canvas: #050517. Logo: WHITE 56×56. Counter: "${counter}". Title font-size rule (NON-NEGOTIABLE): ≤20 chars → 144px; 21–34 chars → 120px; ≥35 chars → 96px. Max 2 lines — use exactly 1 <br> to split into 2 balanced halves. Add flex-shrink:0 to the title div. Eyebrow chip: 1–3 words ONLY, white-space:nowrap, max-width:820px, overflow:hidden. BODY STRUCTURE (CRITICAL): (1) Close the title </div> tag. (2) Add height:80px spacer div. (3) Add body <p>. The <p> MUST be a DIRECT SIBLING of the title div — NEVER a child of it. Placing <p> inside the title div causes the body text to visually collide with the title headline. Wrong: <div title><p>body</p></div>. Right: <div title></div><div 80px></div><p>body</p>.`,
+    LIST:  `Use ARCHETYPE B (LIST). Canvas: #FFFFFF. Logo: BLUE 56×56. Counter: "${counter}". Title: Bebas Neue 120px uppercase. Eyebrow chip: 1–3 words ONLY, white-space:nowrap, max-width:820px, overflow:hidden, NO line breaks, NO sub-labels beneath the chip. Extract 2–4 distinct items from the body and render them as numbered rows (number 40px Bebas blue, row title 36px Inter 700, sub-text 26px Inter 400). Footer: Inter 32px.`,
+    STAT:  `Use ARCHETYPE C (STAT). Canvas: #FFFFFF. Logo: BLUE 56×56. Counter: "${counter}". Title: Bebas Neue 120px uppercase. Eyebrow chip: 1–3 words ONLY, white-space:nowrap, max-width:820px, overflow:hidden. Find the key metric in the body (number, %, $) — make it the 185px Bebas Neue stat. Label: Inter 32px 600. Context: Inter 26px 400. Footer: Inter 32px.`,
     QUOTE: `Use ARCHETYPE D (QUOTE). Canvas: #050517. Logo: WHITE 56×56. Counter: "${counter}". Quote text: Bebas Neue 100px uppercase — one key word in #009FF0. Attribution: Inter 28px 600 #848492. Footer: Inter 32px rgba(255,255,255,0.55).`,
     CTA:   `Use ARCHETYPE E (CTA). Canvas: #009FF0. Exact structure — NOTHING else:
 ① Logo div (INK 96×96, flex-shrink:0)
-② height:48px spacer div
-③ Title div: Bebas Neue 144px #050517 centered — MAXIMUM 2 LINES using exactly 1 <br> — combine the title words into 2 balanced phrases (e.g. "YOUR WORKFLOW / STRATEGY MATTERS" not 4 separate lines)
-④ height:24px spacer div
-⑤ Sub-line <p>: Inter 32px 600 rgba(5,5,23,0.65) — use slide body text verbatim (max 12 words if longer)
-⑥ height:32px spacer div
-⑦ Handle chip <span>: Bebas Neue 28px bg:#050517 color:#FFFFFF white-space:nowrap padding:12px 40px — text: "POINT ONE ZERO"
-NO other elements. NO extra paragraphs after the handle chip.`,
+② height:48px spacer div (flex-shrink:0)
+③ Title div: Bebas Neue 120px #050517 centered, flex-shrink:0, max-height:240px, overflow:hidden — EXACTLY 2 LINES using EXACTLY 1 <br>. Combine words into 2 roughly equal halves and join them with ONE <br>. COUNT your <br> tags before outputting — there must be exactly 1. RIGHT: "POSITION YOUR<br>STRATEGY NOW". WRONG: "POSITION<br>YOUR<br>STRATEGY<br>NOW" (3 line-breaks = 4 lines = broken layout).
+④ height:24px spacer div (flex-shrink:0)
+⑤ Sub-line <p>: Inter 32px 600 rgba(5,5,23,0.65), flex-shrink:0 — use slide body text verbatim (max 12 words). This <p> is a SIBLING of the title div, NOT nested inside it.
+⑥ height:32px spacer div (flex-shrink:0)
+⑦ Handle chip <span>: Bebas Neue 28px bg:#050517 color:#FFFFFF white-space:nowrap padding:12px 40px flex-shrink:0 — text: "POINT ONE ZERO"
+NO other elements. NO extra paragraphs. All 7 elements must have flex-shrink:0.`,
   };
 
-  return `Generate ONE LinkedIn carousel slide — 1080×1350px.
+  return `Generate ONE LinkedIn carousel slide — 1024×1280px.
 
 SLIDE CONTENT:
   Position: ${slide.position} of ${total}
@@ -314,9 +315,10 @@ CRITICAL CHECKLIST — verify before outputting:
 ✓ Content derived from the actual slide data above — no generic filler
 ✓ Title is UPPERCASE (Bebas Neue is always uppercase)
 ✓ NO position:absolute / position:fixed on any child element
-✓ Body <p> is a DIRECT child of root div — NOT nested inside a title div
-✓ Every eyebrow chip and handle chip has white-space:nowrap
-✓ CTA slide has EXACTLY the 7 elements listed — no extra paragraphs
+✓ COVER body: title </div> is CLOSED, then 80px spacer, then <p> — body <p> is a SIBLING of title div, NEVER a child (nesting causes body to collide with the headline)
+✓ Every eyebrow chip has white-space:nowrap AND max-width:820px AND overflow:hidden
+✓ CTA title: COUNT the <br> tags — exactly 1 (two or more <br> = 3–4 lines = overlap). Add max-height:240px;overflow:hidden to the title div.
+✓ CTA slide has EXACTLY the 7 elements listed — no extra paragraphs — all have flex-shrink:0
 
 Return ONLY the <div>. Nothing else.`;
 }

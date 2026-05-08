@@ -21,6 +21,7 @@
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
     "html-to-image": "^1.11.13",
+    "iron-session": "^8.0.4",
     "jose": "^6.2.1",
     "jspdf": "^4.2.1",
     "lucide-react": "^0.576.0",

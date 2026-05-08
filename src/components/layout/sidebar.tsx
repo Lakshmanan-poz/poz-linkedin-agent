@@ -104,9 +104,17 @@ export function Sidebar() {
   const pathname             = usePathname();
   const { authRole, currentUser } = useUser();
 
-  const [width,     setWidth]     = useState(DEFAULT_W);
-  const [collapsed, setCollapsed] = useState(false);
-  const [mounted,   setMounted]   = useState(false);
+  const [width,       setWidth]       = useState(DEFAULT_W);
+  const [collapsed,   setCollapsed]   = useState(false);
+  const [mounted,     setMounted]     = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    fetch("/api/notifications")
+      .then(r => r.json())
+      .then(d => setUnreadCount((d?.notifications ?? []).filter((n: {is_read: boolean}) => !n.is_read).length))
+      .catch(() => {});
+  }, [pathname]);
 
   useEffect(() => {
     const storedW = localStorage.getItem(LS_WIDTH);
@@ -288,13 +296,20 @@ export function Sidebar() {
                           }
                         }}
                       >
-                        <span
-                          className="shrink-0"
-                          style={{ color: active ? "var(--sidebar-primary)" : "inherit" }}
-                        >
+                        <span className="relative shrink-0" style={{ color: active ? "var(--sidebar-primary)" : "inherit" }}>
                           {iconMap[item.icon]}
+                          {unreadCount > 0 && item.href === "/dashboard" && (
+                            <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-red-500 border border-white dark:border-gray-900" />
+                          )}
                         </span>
-                        {showLabels && <span className="truncate">{item.label}</span>}
+                        {showLabels && (
+                          <span className="truncate flex-1">{item.label}</span>
+                        )}
+                        {showLabels && unreadCount > 0 && item.href === "/dashboard" && (
+                          <span className="shrink-0 text-[10px] font-bold bg-red-500 text-white px-1.5 py-0.5 rounded-full leading-none">
+                            {unreadCount > 9 ? "9+" : unreadCount}
+                          </span>
+                        )}
                       </Link>
                     </div>
                   );

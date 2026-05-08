@@ -993,7 +993,7 @@ function fallbackSlideHtml(s: SlideWithHtml): string {
   const bg = isInk ? "#050517" : "#FFFFFF";
   const titleColor = isInk ? "#FFFFFF" : "#050517";
   const bodyColor  = isInk ? "rgba(255,255,255,0.65)" : "#555562";
-  return `<div style="width:1080px;height:1350px;background:${bg};display:flex;flex-direction:column;padding:64px;font-family:'Inter',sans-serif;">
+  return `<div style="width:1024px;height:1280px;background:${bg};display:flex;flex-direction:column;padding:64px;font-family:'Inter',sans-serif;">
     <style>@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700&display=swap');</style>
     <div style="font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:0.10em;padding:8px 24px;background:#009FF0;color:${isInk ? "#050517" : "#FFFFFF"};border-radius:4px;width:fit-content;">${(s.type || "SLIDE").toUpperCase()}</div>
     <div style="flex:1;"></div>
@@ -1008,9 +1008,9 @@ function HtmlSlidePreview({ html }: { html: string }) {
   // Detect ink (dark) slides to give frame correct background
   const isDark = /background:#050517/i.test(html) || /background:\s*#050517/i.test(html);
   return (
-    <div style={{ width: 270, height: 338, overflow: "hidden", borderRadius: 6, boxShadow: "0 2px 16px rgba(5,5,23,0.18)", flexShrink: 0, background: isDark ? "#050517" : "#FFFFFF", position: "relative" }}>
+    <div style={{ width: 256, height: 320, overflow: "hidden", borderRadius: 6, boxShadow: "0 2px 16px rgba(5,5,23,0.18)", flexShrink: 0, background: isDark ? "#050517" : "#FFFFFF", position: "relative" }}>
       <div
-        style={{ width: 1080, height: 1350, transformOrigin: "top left", transform: "scale(0.25)", pointerEvents: "none" }}
+        style={{ width: 1024, height: 1280, transformOrigin: "top left", transform: "scale(0.25)", pointerEvents: "none" }}
         dangerouslySetInnerHTML={{ __html: html }}
       />
     </div>
@@ -1127,21 +1127,8 @@ function DailyResultCard({ data, userId, userName }: { data: DailyResult; userId
     setPdfLoading(true);
     setPdfError("");
 
-    // Dark overlay — covers the briefly-visible slide during capture
-    const overlay = document.createElement("div");
-    overlay.style.cssText = [
-      "position:fixed;top:0;left:0;right:0;bottom:0;",
-      "background:rgba(5,5,23,0.92);",
-      "z-index:99998;",
-      "display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;",
-      "font-family:'Inter',sans-serif;color:#FFFFFF;",
-    ].join("");
-    overlay.innerHTML = `
-      <div style="width:40px;height:40px;border:3px solid rgba(255,255,255,0.2);border-top-color:#009FF0;border-radius:50%;animation:spin 0.8s linear infinite;"></div>
-      <div id="pdf-status" style="font-size:15px;letter-spacing:-0.01em;color:rgba(255,255,255,0.75);">Preparing PDF…</div>
-      <style>@keyframes spin{to{transform:rotate(360deg)}}</style>`;
-    document.body.appendChild(overlay);
-    const statusEl = overlay.querySelector("#pdf-status") as HTMLElement;
+    // Lock scroll so the 1024px capture div never triggers a horizontal scrollbar
+    document.documentElement.style.overflow = "hidden";
 
     try {
       const [{ toJpeg }, { jsPDF }] = await Promise.all([
@@ -1149,9 +1136,8 @@ function DailyResultCard({ data, userId, userName }: { data: DailyResult; userId
         import("jspdf"),
       ]);
 
-      // Ensure Bebas Neue + Inter are fully painted before any capture
       await document.fonts.ready;
-      await Promise.all([
+      await Promise.allSettled([
         document.fonts.load('400 185px "Bebas Neue"'),
         document.fonts.load('400 144px "Bebas Neue"'),
         document.fonts.load('400 120px "Bebas Neue"'),
@@ -1163,58 +1149,67 @@ function DailyResultCard({ data, userId, userName }: { data: DailyResult; userId
         document.fonts.load('600 28px "Inter"'),
       ]);
 
-      const doc = new jsPDF({ orientation: "portrait", unit: "px", format: [1080, 1350], compress: true });
+      const doc = new jsPDF({ orientation: "portrait", unit: "px", format: [1024, 1280], compress: true });
       const renderSlides = htmlSlides || slides;
+      let successCount = 0;
 
       for (let i = 0; i < renderSlides.length; i++) {
-        if (statusEl) statusEl.textContent = `Rendering slide ${i + 1} of ${renderSlides.length}…`;
-
         let html = renderSlides[i].slideHtml || fallbackSlideHtml(renderSlides[i]);
         if (colorOverride) html = applyColorOverride(html, colorOverride);
 
-        // Render at viewport top-left — z-index 99999 (above overlay at 99998)
-        // Browser MUST paint elements in the viewport to capture them correctly
+        // opacity:0 — invisible to the user but the browser still fully paints
+        // and rasterises the element (unlike visibility:hidden / display:none).
+        // position:fixed;top:0;left:0 keeps it in the viewport so the paint
+        // compositor never skips it (off-screen elements produce black JPEGs).
+        // style:{opacity:"1"} in toJpeg overrides the 0 only on the clone used
+        // for capture, so the exported JPEG has full opacity.
         const div = document.createElement("div");
         div.style.cssText = [
           "position:fixed;top:0;left:0;",
-          "width:1080px;height:1350px;",
+          "width:1024px;height:1280px;",
           "overflow:hidden;",
-          "z-index:99999;",
+          "opacity:0;",
           "pointer-events:none;",
         ].join("");
-        // Strip <link> tags so html-to-image doesn't CORS-fetch Google Fonts
         const cleanHtml = html.replace(/<link\b[^>]*>/gi, "");
         div.innerHTML = cleanHtml;
         document.body.appendChild(div);
 
         try {
-          // Allow browser to fully paint the element (fonts + layout)
-          await new Promise(r => setTimeout(r, 200));
+          await new Promise(r => requestAnimationFrame(r));
+          await new Promise(r => requestAnimationFrame(r));
 
           const jpeg = await toJpeg(div, {
-            width: 1080,
-            height: 1350,
-            pixelRatio: 1,     // 1080×1350 — avoids jsPDF memory overflow on multi-slide decks
-            quality: 0.95,
-            skipFonts: true,   // fonts already in document.fonts from layout.tsx — skip CORS re-fetch
+            width: 1024,
+            height: 1280,
+            pixelRatio: 1,
+            quality: 0.88,
+            skipFonts: true,
             cacheBust: false,
+            style: { opacity: "1" },
           });
 
-          if (i > 0) doc.addPage();
-          doc.addImage(jpeg, "JPEG", 0, 0, 1080, 1350);
+          if (successCount > 0 || i > 0) doc.addPage();
+          doc.addImage(jpeg, "JPEG", 0, 0, 1024, 1280);
+          successCount++;
+        } catch (slideErr) {
+          console.error(`[downloadPdf] slide ${i + 1} failed:`, slideErr);
         } finally {
-          // Always remove div — even if toJpeg or addImage throws
           if (document.body.contains(div)) document.body.removeChild(div);
         }
       }
 
-      if (statusEl) statusEl.textContent = "Saving PDF…";
+      if (successCount === 0) {
+        throw new Error(`All ${renderSlides.length} slides failed to render. Check browser console for details.`);
+      }
+
       doc.save(`${data.topic.slice(0, 40).replace(/\W+/g, "-")}-carousel.pdf`);
 
     } catch (e) {
-      setPdfError(e instanceof Error ? e.message : "PDF generation failed");
+      const msg = e instanceof Error ? e.message : "PDF generation failed";
+      setPdfError(`${msg} — try a Chromium-based browser if this persists`);
     } finally {
-      if (document.body.contains(overlay)) document.body.removeChild(overlay);
+      document.documentElement.style.overflow = "";
       setPdfLoading(false);
     }
   }
@@ -3275,7 +3270,10 @@ export default function AgentCatalogPage() {
 
     try {
       // Always fetch 20 (max) to maximise deduplication pool
-      const res  = await fetch(`/api/agents/trending?day=${today}&count=20`);
+      const ctrl = new AbortController();
+      const tid  = setTimeout(() => ctrl.abort(), 13_000);
+      const res  = await fetch(`/api/agents/trending?day=${today}&count=20`, { signal: ctrl.signal });
+      clearTimeout(tid);
       const data = await res.json();
       const fresh: TrendItem[]  = Array.isArray(data.trends) ? data.trends : [];
       const contentType: string = data.contentType ?? fresh[0]?.type ?? "content";

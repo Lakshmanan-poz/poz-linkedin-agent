@@ -69,6 +69,9 @@ Return ONLY valid JSON — no markdown, no explanation:
   ]
 }`;
 
+    const controller = new AbortController();
+    const timeoutId  = setTimeout(() => controller.abort(), 10_000);
+
     const res = await fetch("https://api.x.ai/v1/chat/completions", {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${xaiKey}` },
@@ -77,7 +80,9 @@ Return ONLY valid JSON — no markdown, no explanation:
         messages: [{ role: "user", content: prompt }],
         temperature: 0.3,
       }),
+      signal: controller.signal,
     });
+    clearTimeout(timeoutId);
 
     if (!res.ok) {
       const errBody = await res.text().catch(() => "");
