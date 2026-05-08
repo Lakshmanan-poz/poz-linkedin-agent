@@ -1360,38 +1360,47 @@ Return JSON only:
 
         const callGrokLive = async (extraNote?: string): Promise<XAIResponsesApi> => {
           const model = process.env.XAI_MODEL || "grok-4-fast-reasoning";
-          const res = await fetch("https://api.x.ai/v1/responses", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${xaiKey}`,
-            },
-            body: JSON.stringify({
-              model,
-              input: [
-                { role: "system", content: systemPrompt },
-                { role: "user",   content: extraNote ? `${userPrompt}\n\n${extraNote}` : userPrompt },
-              ],
-              // X Search tool — queries X/Twitter live at request time,
-              // restricted to the rolling 7-day window.
-              tools: [
-                {
-                  type: "x_search",
-                  from_date: fmt(since),
-                  to_date:   fmt(now),
-                },
-              ],
-              // Force JSON so downstream parsing is deterministic.
-              response_format: { type: "json_object" },
-              temperature: 0.3,
-              max_output_tokens: 4000,
-            }),
-          });
-          if (!res.ok) {
-            const body = await res.text();
-            throw new Error(`x.ai ${res.status}: ${body.slice(0, 500)}`);
+          const ctrl = new AbortController();
+          const timer = setTimeout(() => ctrl.abort(), 28_000);
+          try {
+            const res = await fetch("https://api.x.ai/v1/responses", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${xaiKey}`,
+              },
+              signal: ctrl.signal,
+              body: JSON.stringify({
+                model,
+                input: [
+                  { role: "system", content: systemPrompt },
+                  { role: "user",   content: extraNote ? `${userPrompt}\n\n${extraNote}` : userPrompt },
+                ],
+                // X Search tool — queries X/Twitter live at request time,
+                // restricted to the rolling 7-day window.
+                tools: [
+                  {
+                    type: "x_search",
+                    from_date: fmt(since),
+                    to_date:   fmt(now),
+                  },
+                ],
+                // Force JSON so downstream parsing is deterministic.
+                response_format: { type: "json_object" },
+                temperature: 0.3,
+                max_output_tokens: 4000,
+              }),
+            });
+            clearTimeout(timer);
+            if (!res.ok) {
+              const body = await res.text();
+              throw new Error(`x.ai ${res.status}: ${body.slice(0, 500)}`);
+            }
+            return res.json() as Promise<XAIResponsesApi>;
+          } catch (e) {
+            clearTimeout(timer);
+            throw e;
           }
-          return res.json() as Promise<XAIResponsesApi>;
         };
 
         const safeParseJson = (text: string): Record<string, unknown> => {
@@ -1623,16 +1632,19 @@ HARD REQUIREMENT: minimum 20 sources in the sources array. Search multiple angle
       let researchDone = false;
       if (xaiKey) {
         try {
+          const webCtrl = new AbortController();
+          const webTimer = setTimeout(() => webCtrl.abort(), 28_000);
           const webResRes = await fetch("https://api.x.ai/v1/chat/completions", {
             method: "POST",
             headers: { "Content-Type": "application/json", Authorization: `Bearer ${xaiKey}` },
+            signal: webCtrl.signal,
             body: JSON.stringify({
               model: process.env.XAI_MODEL || "grok-3-latest",
               messages: [{ role: "user", content: webSearchPrompt }],
               temperature: 0.2,
               max_tokens: 8000,
             }),
-          });
+          }).finally(() => clearTimeout(webTimer));
           if (webResRes.ok) {
             type XAIChatResp = { choices?: Array<{ message?: { content?: string } }> };
             const webRaw = await webResRes.json() as XAIChatResp;

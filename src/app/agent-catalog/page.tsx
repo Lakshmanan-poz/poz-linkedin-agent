@@ -2247,6 +2247,7 @@ async function generateFromChat(
     if (opts?.slideCount) inputs.slideCount = opts.slideCount;
     if (opts?.singlePage) inputs.singlePage = true;
     const res = await fetch("/api/agents/generate", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ skillId:"daily-post", inputs }) });
+    if (res.status === 401) { window.location.href = "/login"; throw new Error("Session expired — please log in again"); }
     if (!res.ok) throw new Error((await res.json()).error ?? "Generation failed");
     return res.json();
   }
@@ -2254,6 +2255,7 @@ async function generateFromChat(
     const d = new Date(); const dn = d.getDay(); d.setDate(d.getDate() + (dn === 0 ? 1 : 8 - dn));
     const weekOf = d.toISOString().split("T")[0];
     const res = await fetch("/api/agents/generate", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ skillId:"content-calendar", inputs:{ weekOf, company:"Point One Zero (POZ)", industry:"AI Strategy & Design", audience:"CIOs, CTOs, CEOs, founders, B2B tech decision-makers", keyTopics: text } }) });
+    if (res.status === 401) { window.location.href = "/login"; throw new Error("Session expired — please log in again"); }
     if (!res.ok) throw new Error((await res.json()).error ?? "Generation failed");
     return res.json();
   }
@@ -2261,6 +2263,7 @@ async function generateFromChat(
     const match = text.match(/(?:audit|refine|rate|score|check|review)[^:]*:?\s*([\s\S]{80,})/i);
     const content = match?.[1]?.trim() ?? text;
     const res = await fetch("/api/agents/generate", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ skillId:"content-refiner", inputs:{ content } }) });
+    if (res.status === 401) { window.location.href = "/login"; throw new Error("Session expired — please log in again"); }
     if (!res.ok) throw new Error((await res.json()).error ?? "Generation failed");
     return res.json();
   }
@@ -2280,6 +2283,7 @@ async function autoRefineContent(result: DailyResult): Promise<RefinerResult | n
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ skillId: "content-refiner", inputs: { content } }),
     });
+    if (res.status === 401) { window.location.href = "/login"; return null; }
     if (!res.ok) return null;
     return res.json();
   } catch {
