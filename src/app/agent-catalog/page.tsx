@@ -2706,23 +2706,22 @@ export default function AgentCatalogPage() {
         const opts = isSinglePage ? { singlePage: true } : carouselRequest ? { slideCount: slides } : undefined;
         const data = await generateFromChat(intent, text, opts);
         const daily = data as DailyResult;
-        // Auto Refiner — silently run quality audit on carousel output before showing
+        // Show the carousel first, then append quality audit as a separate message
+        setMessages((prev) => prev.map((m) =>
+          m.id === agentId
+            ? { ...m, generating: false, text: "Here you go:", resultType: "daily-content" as EmbedType, resultData: daily }
+            : m
+        ));
         if (!isSinglePage && daily.slides?.length > 1) {
           const refined = await autoRefineContent(daily);
           if (refined) {
-            setMessages((prev) => prev.map((m) =>
-              m.id === agentId
-                ? { ...m, generating: false, text: "Here you go:", resultType: "content-refiner" as EmbedType, resultData: refined }
-                : m
-            ));
-            return;
+            setMessages((prev) => [...prev, {
+              id: uuid(), role: "agent" as const, generating: false,
+              text: "Quality audit:",
+              resultType: "content-refiner" as EmbedType, resultData: refined,
+            }]);
           }
         }
-        setMessages((prev) => prev.map((m) =>
-          m.id === agentId
-            ? { ...m, generating: false, text: "Here you go:", resultType: intent, resultData: data }
-            : m
-        ));
       } catch (e) {
         const msg = e instanceof Error ? e.message : "Generation failed";
         setMessages((prev) => prev.map((m) =>
@@ -2811,23 +2810,22 @@ export default function AgentCatalogPage() {
         // Hidden Thinking Layer — no intermediate text
         const data = await generateFromChat("daily-content", topic, opts);
         const daily = data as DailyResult;
-        // Auto Refiner — pipe carousel output through quality audit (STRICT MODE)
-        if (!isSingle && daily.slides?.length > 1) {
-          const refined = await autoRefineContent(daily);
-          if (refined) {
-            setMessages((prev) => prev.map((m) =>
-              m.id === agentId
-                ? { ...m, generating: false, text: "Here you go:", resultType: "content-refiner" as EmbedType, resultData: refined }
-                : m
-            ));
-            return;
-          }
-        }
+        // Show the carousel first, then append quality audit as a separate message
         setMessages((prev) => prev.map((m) =>
           m.id === agentId
             ? { ...m, generating: false, text: "Here you go:", resultType: "daily-content", resultData: data }
             : m
         ));
+        if (!isSingle && daily.slides?.length > 1) {
+          const refined = await autoRefineContent(daily);
+          if (refined) {
+            setMessages((prev) => [...prev, {
+              id: uuid(), role: "agent" as const, generating: false,
+              text: "Quality audit:",
+              resultType: "content-refiner" as EmbedType, resultData: refined,
+            }]);
+          }
+        }
         return;
       }
 
