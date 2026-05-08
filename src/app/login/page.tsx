@@ -140,7 +140,7 @@ export default function LoginPage() {
                   <input
                     id="identifier"
                     type="text"
-                    placeholder="you@poz.ai"
+                    placeholder="you@pointonezero.com"
                     value={form.identifier}
                     onChange={(e) => setForm({ ...form, identifier: e.target.value })}
                     required

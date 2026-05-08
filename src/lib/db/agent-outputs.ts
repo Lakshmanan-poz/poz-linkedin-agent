@@ -1,4 +1,4 @@
-import { getDb } from "./index";
+import { getAdminDb, getDb } from "./index";
 import { AgentOutput } from "../agents/types";
 
 const OUTPUT_SELECT_COLS =
@@ -7,7 +7,7 @@ const OUTPUT_SELECT_COLS =
 async function enrichCreatorNames(rows: AgentOutput[]): Promise<AgentOutput[]> {
   if (rows.length === 0) return rows;
 
-  const db = getDb();
+  const db = getAdminDb() ?? getDb();
   const memberIds = Array.from(new Set(rows.map((row) => row.created_by).filter(Boolean)));
   if (memberIds.length === 0) return rows;
 
@@ -32,7 +32,7 @@ export async function getAllOutputs(filters?: {
   created_by?: number;
   search?: string;
 }): Promise<AgentOutput[]> {
-  const db = getDb();
+  const db = getAdminDb() ?? getDb();
   let query = db.from("agent_outputs").select(OUTPUT_SELECT_COLS).order("created_at", { ascending: false });
 
   if (filters?.agent_id) query = query.eq("agent_id", filters.agent_id);
@@ -50,7 +50,7 @@ export async function getAllOutputs(filters?: {
 }
 
 export async function getOutputById(id: number): Promise<AgentOutput | undefined> {
-  const db = getDb();
+  const db = getAdminDb() ?? getDb();
   const { data, error } = await db
     .from("agent_outputs")
     .select(OUTPUT_SELECT_COLS)
@@ -72,7 +72,7 @@ export async function createOutput(data: {
   output_json: string;
   created_by: number;
 }): Promise<AgentOutput> {
-  const db = getDb();
+  const db = getAdminDb() ?? getDb();
   const { data: created, error } = await db
     .from("agent_outputs")
     .insert({
@@ -95,7 +95,7 @@ export async function updateOutput(
   id: number,
   data: Partial<{ title: string; output_json: string; status: string }>
 ): Promise<AgentOutput | undefined> {
-  const db = getDb();
+  const db = getAdminDb() ?? getDb();
   const payload = Object.fromEntries(Object.entries(data).filter(([, value]) => value !== undefined));
 
   if (Object.keys(payload).length === 0) return getOutputById(id);
@@ -115,7 +115,7 @@ export async function updateOutput(
 }
 
 export async function deleteOutput(id: number): Promise<boolean> {
-  const db = getDb();
+  const db = getAdminDb() ?? getDb();
   const { data, error } = await db.from("agent_outputs").delete().eq("id", id).select("id");
   if (error) throw new Error(`Failed to delete output: ${error.message}`);
   return (data?.length || 0) > 0;

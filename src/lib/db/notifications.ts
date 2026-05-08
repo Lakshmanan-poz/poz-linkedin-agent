@@ -1,8 +1,8 @@
-import { getDb } from "./index";
+import { getAdminDb, getDb } from "./index";
 import { Notification } from "../types";
 
 export async function getNotificationsByUserId(userId: number): Promise<Notification[]> {
-  const db = getDb();
+  const db = getAdminDb() ?? getDb();
   const { data, error } = await db
     .from("notifications")
     .select("*")
@@ -15,7 +15,7 @@ export async function getNotificationsByUserId(userId: number): Promise<Notifica
 }
 
 export async function getUnreadCount(userId: number): Promise<number> {
-  const db = getDb();
+  const db = getAdminDb() ?? getDb();
   const { count, error } = await db
     .from("notifications")
     .select("*", { count: "exact", head: true })
@@ -33,7 +33,7 @@ export async function createNotification(data: {
   message: string;
   created_by?: number;
 }): Promise<Notification> {
-  const db = getDb();
+  const db = getAdminDb() ?? getDb();
   const { data: notification, error } = await db
     .from("notifications")
     .insert(data)
@@ -45,7 +45,7 @@ export async function createNotification(data: {
 }
 
 export async function markAsRead(id: number): Promise<void> {
-  const db = getDb();
+  const db = getAdminDb() ?? getDb();
   const { error } = await db
     .from("notifications")
     .update({ is_read: true })
@@ -55,7 +55,7 @@ export async function markAsRead(id: number): Promise<void> {
 }
 
 export async function markAllAsRead(userId: number): Promise<void> {
-  const db = getDb();
+  const db = getAdminDb() ?? getDb();
   const { error } = await db
     .from("notifications")
     .update({ is_read: true })

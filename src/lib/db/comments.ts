@@ -1,8 +1,8 @@
-import { getDb } from "./index";
+import { getAdminDb, getDb } from "./index";
 import { PostComment } from "../types";
 
 export async function getCommentsByPostId(postId: number): Promise<PostComment[]> {
-  const db = getDb();
+  const db = getAdminDb() ?? getDb();
   const { data, error } = await db
     .from("post_comments")
     .select("id, post_id, author_id, content, created_at, team_members(name)")
@@ -26,7 +26,7 @@ export async function createComment(data: {
   author_id: number;
   content: string;
 }): Promise<PostComment> {
-  const db = getDb();
+  const db = getAdminDb() ?? getDb();
   const { data: comment, error } = await db
     .from("post_comments")
     .insert(data)
@@ -38,7 +38,7 @@ export async function createComment(data: {
 }
 
 export async function deleteComment(id: number): Promise<boolean> {
-  const db = getDb();
+  const db = getAdminDb() ?? getDb();
   const { error } = await db.from("post_comments").delete().eq("id", id);
   if (error) throw new Error(error.message);
   return true;

@@ -154,25 +154,16 @@ CREATE INDEX IF NOT EXISTS idx_notifications_read ON notifications(user_id, is_r
 -- AUTH SEED DATA
 -- =====================================================
 
--- Create default superadmin (password: admin123)
--- $2b$10$9QN8o3gFEogPdqdh7Qd1Ju.PaAq5j8WSOQ/JZnpwruro7hwq.Hd62 = bcrypt("admin123")
-INSERT INTO team_members (name, email, role, auth_role, password_hash)
-VALUES ('Admin', 'admin@poz.com', 'lead', 'superadmin', '$2b$10$9QN8o3gFEogPdqdh7Qd1Ju.PaAq5j8WSOQ/JZnpwruro7hwq.Hd62')
-ON CONFLICT (email) DO UPDATE SET
-  auth_role = 'superadmin',
-  password_hash = COALESCE(team_members.password_hash, '$2b$10$9QN8o3gFEogPdqdh7Qd1Ju.PaAq5j8WSOQ/JZnpwruro7hwq.Hd62');
-
--- Set default passwords for existing team members without passwords (password: poz123)
+-- Default password for all users: poz123
 -- $2b$10$YeNDQv8YbNE5u2Fqa9djFuGiHWv8CRvH5SKUOAYLHC7TLMOY67UsO = bcrypt("poz123")
 UPDATE team_members
 SET password_hash = '$2b$10$YeNDQv8YbNE5u2Fqa9djFuGiHWv8CRvH5SKUOAYLHC7TLMOY67UsO'
-WHERE password_hash IS NULL AND email != 'admin@poz.com';
+WHERE password_hash IS NULL;
 
 -- Set auth_role for existing users if not set
 UPDATE team_members
 SET auth_role = CASE
-  WHEN email = 'admin@poz.com' THEN 'superadmin'
-  WHEN email IN ('shweta@poz.ai') THEN 'admin'  -- Shweta as admin
+  WHEN email ILIKE 'sridhar@pointonezero.com' THEN 'admin'
   ELSE 'employee'
 END
 WHERE auth_role IS NULL OR auth_role = '';
@@ -183,16 +174,12 @@ WHERE auth_role IS NULL OR auth_role = '';
 
 -- Seed team members (if none exist except admin)
 INSERT INTO team_members (name, email, role, auth_role, password_hash) VALUES
-  ('Shweta', 'shweta@poz.ai', 'lead', 'admin', '$2b$10$YeNDQv8YbNE5u2Fqa9djFuGiHWv8CRvH5SKUOAYLHC7TLMOY67UsO'),
-  ('Miguel', 'miguel@poz.ai', 'member', 'employee', '$2b$10$YeNDQv8YbNE5u2Fqa9djFuGiHWv8CRvH5SKUOAYLHC7TLMOY67UsO'),
-  ('Tejas', 'tejas@poz.ai', 'member', 'employee', '$2b$10$YeNDQv8YbNE5u2Fqa9djFuGiHWv8CRvH5SKUOAYLHC7TLMOY67UsO'),
-  ('Boobesh', 'boobesh@poz.ai', 'member', 'employee', '$2b$10$YeNDQv8YbNE5u2Fqa9djFuGiHWv8CRvH5SKUOAYLHC7TLMOY67UsO'),
-  ('Lakshman', 'lakshman@poz.ai', 'member', 'employee', '$2b$10$YeNDQv8YbNE5u2Fqa9djFuGiHWv8CRvH5SKUOAYLHC7TLMOY67UsO'),
-  ('Rucha', 'rucha@poz.ai', 'designer', 'employee', '$2b$10$YeNDQv8YbNE5u2Fqa9djFuGiHWv8CRvH5SKUOAYLHC7TLMOY67UsO'),
-  ('Karishma', 'karishma@poz.ai', 'designer', 'employee', '$2b$10$YeNDQv8YbNE5u2Fqa9djFuGiHWv8CRvH5SKUOAYLHC7TLMOY67UsO'),
-  ('Sridhar', 'sridhar@poz.ai', 'member', 'employee', '$2b$10$YeNDQv8YbNE5u2Fqa9djFuGiHWv8CRvH5SKUOAYLHC7TLMOY67UsO'),
-  ('Rajarajan', 'rajarajan@poz.ai', 'member', 'employee', '$2b$10$YeNDQv8YbNE5u2Fqa9djFuGiHWv8CRvH5SKUOAYLHC7TLMOY67UsO'),
-  ('Shagita', 'shagita@poz.ai', 'member', 'employee', '$2b$10$YeNDQv8YbNE5u2Fqa9djFuGiHWv8CRvH5SKUOAYLHC7TLMOY67UsO')
+  ('Lakshmanan',  'lakshmanan@pointonezero.com',  'member', 'employee', '$2b$10$YeNDQv8YbNE5u2Fqa9djFuGiHWv8CRvH5SKUOAYLHC7TLMOY67UsO'),
+  ('Migavel',     'migavel@pointonezero.com',     'member', 'employee', '$2b$10$YeNDQv8YbNE5u2Fqa9djFuGiHWv8CRvH5SKUOAYLHC7TLMOY67UsO'),
+  ('Sridhar',     'sridhar@pointonezero.com',     'lead',   'admin',    '$2b$10$YeNDQv8YbNE5u2Fqa9djFuGiHWv8CRvH5SKUOAYLHC7TLMOY67UsO'),
+  ('Mageshwaran', 'mageshwaran@pointonezero.com', 'member', 'employee', '$2b$10$YeNDQv8YbNE5u2Fqa9djFuGiHWv8CRvH5SKUOAYLHC7TLMOY67UsO'),
+  ('GobiKrishna', 'gobikrishna@pointonezero.com', 'member', 'employee', '$2b$10$YeNDQv8YbNE5u2Fqa9djFuGiHWv8CRvH5SKUOAYLHC7TLMOY67UsO'),
+  ('Mowlish',     'mowlish@pointonezero.com',     'member', 'employee', '$2b$10$YeNDQv8YbNE5u2Fqa9djFuGiHWv8CRvH5SKUOAYLHC7TLMOY67UsO')
 ON CONFLICT (email) DO NOTHING;
 
 -- Seed prompt templates (if none exist)

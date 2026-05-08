@@ -1,7 +1,7 @@
-import { getDb } from "./index";
+import { getAdminDb, getDb } from "./index";
 
 export async function getSetting(key: string): Promise<string | undefined> {
-  const db = getDb();
+  const db = getAdminDb() ?? getDb();
   const { data, error } = await db
     .from("app_settings")
     .select("value")
@@ -13,7 +13,7 @@ export async function getSetting(key: string): Promise<string | undefined> {
 }
 
 export async function getAllSettings(): Promise<Record<string, string>> {
-  const db = getDb();
+  const db = getAdminDb() ?? getDb();
   const { data, error } = await db.from("app_settings").select("key, value");
 
   if (error) throw new Error(`Failed to fetch settings: ${error.message}`);
@@ -21,7 +21,7 @@ export async function getAllSettings(): Promise<Record<string, string>> {
 }
 
 export async function setSetting(key: string, value: string): Promise<void> {
-  const db = getDb();
+  const db = getAdminDb() ?? getDb();
   const { error } = await db.from("app_settings").upsert(
     {
       key,
@@ -35,7 +35,7 @@ export async function setSetting(key: string, value: string): Promise<void> {
 }
 
 export async function setMultipleSettings(settings: Record<string, string>): Promise<void> {
-  const db = getDb();
+  const db = getAdminDb() ?? getDb();
   const rows = Object.entries(settings).map(([key, value]) => ({
     key,
     value,

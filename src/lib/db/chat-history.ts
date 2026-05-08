@@ -59,7 +59,7 @@ const SESSION_COLS = "id, session_id, user_id, title, messages, last_message_at,
 
 /* ─── List all sessions for a user ──────────────────────────────────────────── */
 export async function getChatSessions(userId: number): Promise<ChatSession[]> {
-  const db = getDb();
+  const db = getAdminDb() ?? getDb();
   const { data, error } = await db
     .from("agent_catalog_chat_history")
     .select(SESSION_COLS)
@@ -77,7 +77,7 @@ export async function upsertChatSession(params: {
   title: string;
   messages: unknown[];
 }): Promise<ChatSession> {
-  const db = getDb();
+  const db = getAdminDb() ?? getDb();
   const { data, error } = await db
     .from("agent_catalog_chat_history")
     .upsert(
@@ -126,7 +126,7 @@ export async function upsertChatSession(params: {
 
 /* ─── Delete a session ───────────────────────────────────────────────────────── */
 export async function deleteChatSession(sessionId: string, userId: number): Promise<boolean> {
-  const db = getDb();
+  const db = getAdminDb() ?? getDb();
   const { data, error } = await db
     .from("agent_catalog_chat_history")
     .delete()

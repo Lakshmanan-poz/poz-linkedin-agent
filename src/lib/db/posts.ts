@@ -1,4 +1,4 @@
-import { getDb } from "./index";
+import { getAdminDb, getDb } from "./index";
 import { Post, PostRevision, PostStatusHistory, PostStatus, PostType } from "../types";
 
 const POST_SELECT_COLS =
@@ -18,7 +18,7 @@ function toIsoDate(date: Date): string {
 async function getMemberNameMap(ids: number[]): Promise<Map<number, string>> {
   if (ids.length === 0) return new Map();
 
-  const db = getDb();
+  const db = getAdminDb() ?? getDb();
   const { data, error } = await db.from("team_members").select("id, name").in("id", ids);
 
   if (error) throw new Error(`Failed to fetch member names: ${error.message}`);
@@ -54,7 +54,7 @@ export async function getAllPosts(filters?: {
   author_id?: number;
   search?: string;
 }): Promise<Post[]> {
-  const db = getDb();
+  const db = getAdminDb() ?? getDb();
   let query = db.from("posts").select(POST_SELECT_COLS).order("updated_at", { ascending: false });
 
   if (filters?.status) query = query.eq("status", filters.status);
@@ -71,7 +71,7 @@ export async function getAllPosts(filters?: {
 }
 
 export async function getPostById(id: number): Promise<Post | undefined> {
-  const db = getDb();
+  const db = getAdminDb() ?? getDb();
   const { data, error } = await db.from("posts").select(POST_SELECT_COLS).eq("id", id).maybeSingle();
 
   if (error) throw new Error(`Failed to fetch post: ${error.message}`);
@@ -93,7 +93,7 @@ export async function createPost(data: {
   hashtags?: string;
   scheduled_date?: string;
 }): Promise<Post> {
-  const db = getDb();
+  const db = getAdminDb() ?? getDb();
   const { data: created, error } = await db
     .from("posts")
     .insert({
@@ -149,7 +149,7 @@ export async function updatePost(
     carousel_slides: string | null;
   }>
 ): Promise<Post | undefined> {
-  const db = getDb();
+  const db = getAdminDb() ?? getDb();
   const payload = Object.fromEntries(Object.entries(data).filter(([, value]) => value !== undefined));
 
   if (Object.keys(payload).length === 0) return getPostById(id);
@@ -164,7 +164,7 @@ export async function updatePost(
 }
 
 export async function deletePost(id: number): Promise<boolean> {
-  const db = getDb();
+  const db = getAdminDb() ?? getDb();
   const { data, error } = await db.from("posts").delete().eq("id", id).select("id");
 
   if (error) throw new Error(`Failed to delete post: ${error.message}`);
@@ -177,7 +177,7 @@ export async function transitionPostStatus(
   changedBy: number,
   note?: string
 ): Promise<Post | undefined> {
-  const db = getDb();
+  const db = getAdminDb() ?? getDb();
   const post = await getPostById(id);
   if (!post) return undefined;
 
@@ -205,7 +205,7 @@ export async function addRevision(
   revisedBy: number,
   type: string
 ): Promise<PostRevision> {
-  const db = getDb();
+  const db = getAdminDb() ?? getDb();
   const { data, error } = await db
     .from("post_revisions")
     .insert({
@@ -222,7 +222,7 @@ export async function addRevision(
 }
 
 export async function getRevisions(postId: number): Promise<PostRevision[]> {
-  const db = getDb();
+  const db = getAdminDb() ?? getDb();
   const { data, error } = await db
     .from("post_revisions")
     .select(REVISION_SELECT_COLS)
@@ -242,7 +242,7 @@ export async function getRevisions(postId: number): Promise<PostRevision[]> {
 }
 
 export async function getStatusHistory(postId: number): Promise<PostStatusHistory[]> {
-  const db = getDb();
+  const db = getAdminDb() ?? getDb();
   const { data, error } = await db
     .from("post_status_history")
     .select(STATUS_HISTORY_SELECT_COLS)
@@ -262,7 +262,7 @@ export async function getStatusHistory(postId: number): Promise<PostStatusHistor
 }
 
 export async function getPostsByWeek(weekStart: string, authorId?: number): Promise<Post[]> {
-  const db = getDb();
+  const db = getAdminDb() ?? getDb();
 
   const start = new Date(`${weekStart}T00:00:00.000Z`);
   const end = new Date(start);
@@ -287,7 +287,7 @@ export async function getPostsByWeek(weekStart: string, authorId?: number): Prom
 }
 
 export async function getDashboardStats() {
-  const db = getDb();
+  const db = getAdminDb() ?? getDb();
 
   const { count: totalPostsCount, error: totalError } = await db
     .from("posts")

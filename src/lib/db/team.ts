@@ -1,10 +1,10 @@
-import { getDb } from "./index";
+import { getAdminDb, getDb } from "./index";
 import { TeamMember, AuthRole } from "../types";
 
 const SELECT_COLS = "id, name, email, role, auth_role, created_at";
 
 export async function getAllTeamMembers(): Promise<TeamMember[]> {
-  const db = getDb();
+  const db = getAdminDb() ?? getDb();
   const { data, error } = await db
     .from("team_members")
     .select(SELECT_COLS)
@@ -15,7 +15,7 @@ export async function getAllTeamMembers(): Promise<TeamMember[]> {
 }
 
 export async function getTeamMemberById(id: number): Promise<TeamMember | undefined> {
-  const db = getDb();
+  const db = getAdminDb() ?? getDb();
   const { data, error } = await db
     .from("team_members")
     .select(SELECT_COLS)
@@ -33,7 +33,7 @@ export async function createTeamMember(data: {
   auth_role?: AuthRole;
   password_hash?: string;
 }): Promise<TeamMember> {
-  const db = getDb();
+  const db = getAdminDb() ?? getDb();
   const { data: created, error } = await db
     .from("team_members")
     .insert({
@@ -54,7 +54,7 @@ export async function updateTeamMember(
   id: number,
   data: Partial<{ name: string; email: string; role: string; auth_role: AuthRole }>
 ): Promise<TeamMember | undefined> {
-  const db = getDb();
+  const db = getAdminDb() ?? getDb();
   const payload = Object.fromEntries(Object.entries(data).filter(([, value]) => value !== undefined));
 
   if (Object.keys(payload).length === 0) return getTeamMemberById(id);
@@ -71,7 +71,7 @@ export async function updateTeamMember(
 }
 
 export async function deleteTeamMember(id: number): Promise<boolean> {
-  const db = getDb();
+  const db = getAdminDb() ?? getDb();
   const { data, error } = await db.from("team_members").delete().eq("id", id).select("id");
   if (error) throw new Error(`Failed to delete team member: ${error.message}`);
   return (data?.length || 0) > 0;
