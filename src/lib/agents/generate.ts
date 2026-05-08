@@ -1640,7 +1640,7 @@ HARD REQUIREMENT: minimum 20 sources in the sources array. Search multiple angle
         try {
           const apiKeyForSearch = process.env.OPENAI_API_KEY || storedApiKey;
           if (apiKeyForSearch) {
-            const openaiSearch = new OpenAI({ apiKey: apiKeyForSearch });
+            const openaiSearch = new OpenAI({ apiKey: apiKeyForSearch, timeout: 15_000 });
             const searchResp = await openaiSearch.responses.create({
               model: defaultModelSetting || "gpt-4o",
               instructions: "You are a research analyst. Search the web thoroughly and return ONLY valid JSON — no markdown, no explanation.",
