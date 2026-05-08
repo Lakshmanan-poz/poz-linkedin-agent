@@ -424,7 +424,7 @@ async function saveOutput(payload: {
   const res = await fetch("/api/agents/outputs", {
     method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
   });
-  if (!res.ok) throw new Error((await res.json()).error ?? "Save failed");
+  if (!res.ok) { let m = "Save failed"; try { m = (await res.json()).error ?? m; } catch {} throw new Error(m); }
 }
 
 /* ─── Professional X/Twitter trend scan (12+ sources, not engagement-based) ── */
@@ -2248,7 +2248,7 @@ async function generateFromChat(
     if (opts?.singlePage) inputs.singlePage = true;
     const res = await fetch("/api/agents/generate", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ skillId:"daily-post", inputs }) });
     if (res.status === 401) { window.location.href = "/login"; throw new Error("Session expired — please log in again"); }
-    if (!res.ok) throw new Error((await res.json()).error ?? "Generation failed");
+    if (!res.ok) { let m = "Generation failed"; try { m = (await res.json()).error ?? m; } catch {} throw new Error(m); }
     return res.json();
   }
   if (intent === "weekly-calendar") {
@@ -2256,7 +2256,7 @@ async function generateFromChat(
     const weekOf = d.toISOString().split("T")[0];
     const res = await fetch("/api/agents/generate", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ skillId:"content-calendar", inputs:{ weekOf, company:"Point One Zero (POZ)", industry:"AI Strategy & Design", audience:"CIOs, CTOs, CEOs, founders, B2B tech decision-makers", keyTopics: text } }) });
     if (res.status === 401) { window.location.href = "/login"; throw new Error("Session expired — please log in again"); }
-    if (!res.ok) throw new Error((await res.json()).error ?? "Generation failed");
+    if (!res.ok) { let m = "Generation failed"; try { m = (await res.json()).error ?? m; } catch {} throw new Error(m); }
     return res.json();
   }
   if (intent === "content-refiner") {
@@ -2264,7 +2264,7 @@ async function generateFromChat(
     const content = match?.[1]?.trim() ?? text;
     const res = await fetch("/api/agents/generate", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ skillId:"content-refiner", inputs:{ content } }) });
     if (res.status === 401) { window.location.href = "/login"; throw new Error("Session expired — please log in again"); }
-    if (!res.ok) throw new Error((await res.json()).error ?? "Generation failed");
+    if (!res.ok) { let m = "Generation failed"; try { m = (await res.json()).error ?? m; } catch {} throw new Error(m); }
     return res.json();
   }
   throw new Error("Unknown intent");
