@@ -3,7 +3,7 @@ import { generateSkillOutput } from "@/lib/agents/generate";
 import { verifyToken, COOKIE_NAME } from "@/lib/auth";
 import { SkillId } from "@/lib/agents/types";
 
-export const maxDuration = 300;
+export const maxDuration = 60;
 
 async function requireAuth(request: NextRequest) {
   const token = request.cookies.get(COOKIE_NAME)?.value;

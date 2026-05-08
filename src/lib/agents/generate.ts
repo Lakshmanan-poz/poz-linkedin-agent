@@ -1361,7 +1361,7 @@ Return JSON only:
         const callGrokLive = async (extraNote?: string): Promise<XAIResponsesApi> => {
           const model = process.env.XAI_MODEL || "grok-4-fast-reasoning";
           const ctrl = new AbortController();
-          const timer = setTimeout(() => ctrl.abort(), 28_000);
+          const timer = setTimeout(() => ctrl.abort(), 10_000);
           try {
             const res = await fetch("https://api.x.ai/v1/responses", {
               method: "POST",
@@ -1414,34 +1414,8 @@ Return JSON only:
         };
 
         const firstResp = await callGrokLive();
-        let td = safeParseJson(extractText(firstResp));
-        let rawSources: unknown[] = Array.isArray(td.sources) ? td.sources : [];
-
-        // Second pass: if we got fewer than 12, push Grok to expand.
-        if (rawSources.length < 12) {
-          const have = rawSources
-            .filter((s): s is { handle?: unknown } => !!s && typeof s === "object")
-            .map((s) => (typeof s.handle === "string" ? s.handle : ""))
-            .filter(Boolean)
-            .join(", ");
-          const expandNote = `FOLLOW-UP INSTRUCTION: Your previous response returned only ${rawSources.length} sources. That is below the 12-source minimum. Run additional x_search queries with broader terms, synonyms, adjacent communities, and stakeholder roles. Return the FULL expanded list (at least 12 total). Already captured: ${have || "none"}. Add NEW distinct handles until the total is ≥ 12.`;
-          const secondResp = await callGrokLive(expandNote);
-          const td2 = safeParseJson(extractText(secondResp));
-          // Merge: union handles across both passes (case-insensitive).
-          const merged = new Map<string, unknown>();
-          for (const s of [...rawSources, ...(Array.isArray(td2.sources) ? td2.sources : [])]) {
-            if (s && typeof s === "object" && typeof (s as { handle?: unknown }).handle === "string") {
-              merged.set(((s as { handle: string }).handle).toLowerCase(), s);
-            }
-          }
-          rawSources = Array.from(merged.values());
-          // Use the fuller trend analysis from the second pass if present.
-          td = {
-            ...td,
-            ...td2,
-            sources: rawSources,
-          };
-        }
+        const td = safeParseJson(extractText(firstResp));
+        const rawSources: unknown[] = Array.isArray(td.sources) ? td.sources : [];
 
         type RawSource = { handle?: unknown; authority?: unknown; whatTheySaid?: unknown; relevance?: unknown };
         const sources: Array<{ handle: string; authority: string; whatTheySaid: string; relevance: string }> =
@@ -1633,7 +1607,7 @@ HARD REQUIREMENT: minimum 20 sources in the sources array. Search multiple angle
       if (xaiKey) {
         try {
           const webCtrl = new AbortController();
-          const webTimer = setTimeout(() => webCtrl.abort(), 28_000);
+          const webTimer = setTimeout(() => webCtrl.abort(), 10_000);
           const webResRes = await fetch("https://api.x.ai/v1/chat/completions", {
             method: "POST",
             headers: { "Content-Type": "application/json", Authorization: `Bearer ${xaiKey}` },
@@ -1690,7 +1664,7 @@ HARD REQUIREMENT: minimum 20 sources in the sources array. Search multiple angle
   if (!apiKey) throw new Error("OpenAI API key not configured");
 
   const model = defaultModelSetting || "gpt-4o";
-  const openai = new OpenAI({ apiKey });
+  const openai = new OpenAI({ apiKey, timeout: 20_000 });
 
   const promptConfig = SKILL_PROMPTS[params.skillId];
   if (!promptConfig) throw new Error(`Unknown skill: ${params.skillId}`);
