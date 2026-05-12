@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import { PostStatusBadge } from "@/components/posts/post-status-badge";
 import { PostTypeBadge } from "@/components/posts/post-type-badge";
-import { POST_TYPE_LABELS } from "@/lib/constants";
+import { ALL_STATUSES, ALL_POST_TYPES, POST_STATUS_LABELS, POST_TYPE_LABELS } from "@/lib/constants";
 import { Post, PostStatus, PostType } from "@/lib/types";
 
 /* ─── Icons ──────────────────────────────────────────────────────────────────── */
