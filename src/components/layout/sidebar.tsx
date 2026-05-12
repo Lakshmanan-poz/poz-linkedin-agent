@@ -99,6 +99,18 @@ function PozLogo({ size = 30 }: { size?: number }) {
   );
 }
 
+/* ─── Chat session type (minimal) ────────────────────────────────────────────── */
+type SidebarChatSession = { session_id: string; title: string; last_message_at: string; messages: unknown[] };
+
+function fmtChatDate(iso: string) {
+  const d = new Date(iso);
+  const diff = Date.now() - d.getTime();
+  if (diff < 60_000)     return "just now";
+  if (diff < 3_600_000)  return `${Math.floor(diff / 60_000)}m ago`;
+  if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)}h ago`;
+  return d.toLocaleDateString("en-GB", { day: "2-digit", month: "short" });
+}
+
 /* ─── Main component ─────────────────────────────────────────────────────────── */
 export function Sidebar() {
   const pathname             = usePathname();
@@ -109,12 +121,71 @@ export function Sidebar() {
   const [mounted,     setMounted]     = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
 
+  /* chat history (agent-catalog page only) */
+  const [chatSessions,  setChatSessions]  = useState<SidebarChatSession[]>([]);
+  const [chatLoading,   setChatLoading]   = useState(false);
+  const [activeChatId,  setActiveChatId]  = useState<string | null>(null);
+  const [chatSearch,    setChatSearch]    = useState("");
+  const [openMenuId,    setOpenMenuId]    = useState<string | null>(null);
+  const [copiedId,      setCopiedId]      = useState<string | null>(null);
+  const [deletingId,    setDeletingId]    = useState<string | null>(null);
+
   useEffect(() => {
     fetch("/api/notifications")
       .then(r => r.json())
       .then(d => setUnreadCount((d?.notifications ?? []).filter((n: {is_read: boolean}) => !n.is_read).length))
       .catch(() => {});
   }, [pathname]);
+
+  useEffect(() => {
+    const handler = () => setUnreadCount(0);
+    window.addEventListener("notifications-read", handler);
+    return () => window.removeEventListener("notifications-read", handler);
+  }, []);
+
+  /* load chat history when entering agent-catalog */
+  useEffect(() => {
+    if (pathname !== "/agent-catalog") return;
+    setChatLoading(true);
+    fetch("/api/agents/chat-history")
+      .then(r => r.json())
+      .then(d => setChatSessions(Array.isArray(d) ? d : []))
+      .catch(() => {})
+      .finally(() => setChatLoading(false));
+  }, [pathname]);
+
+  /* close share menu when clicking outside */
+  useEffect(() => {
+    if (!openMenuId) return;
+    const handler = () => setOpenMenuId(null);
+    window.addEventListener("click", handler);
+    return () => window.removeEventListener("click", handler);
+  }, [openMenuId]);
+
+  async function handleDeleteSession(sessionId: string) {
+    setDeletingId(sessionId);
+    try {
+      await fetch(`/api/agents/chat-history?session_id=${sessionId}`, { method: "DELETE" });
+      setChatSessions(prev => prev.filter(s => s.session_id !== sessionId));
+      if (activeChatId === sessionId) {
+        setActiveChatId(null);
+        window.dispatchEvent(new CustomEvent("agent-catalog-new-chat"));
+      }
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
+  /* keep in sync when agent-catalog page saves/deletes sessions */
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (Array.isArray(detail?.sessions)) setChatSessions(detail.sessions);
+      if (detail?.activeId !== undefined) setActiveChatId(detail.activeId);
+    };
+    window.addEventListener("agent-catalog-sessions-updated", handler);
+    return () => window.removeEventListener("agent-catalog-sessions-updated", handler);
+  }, []);
 
   useEffect(() => {
     const storedW = localStorage.getItem(LS_WIDTH);
@@ -176,6 +247,26 @@ export function Sidebar() {
     superadmin: "Super Admin", admin: "Admin",
     employee: "Employee", designer: "Designer",
   };
+
+  /* chat session groups for history panel */
+  const chatSessionGroups = (() => {
+    const filtered = chatSearch.trim()
+      ? chatSessions.filter(s => s.title?.toLowerCase().includes(chatSearch.toLowerCase()))
+      : chatSessions;
+    const now = Date.now();
+    const today: SidebarChatSession[] = [], week: SidebarChatSession[] = [], older: SidebarChatSession[] = [];
+    filtered.forEach(s => {
+      const diff = now - new Date(s.last_message_at).getTime();
+      if (diff < 86_400_000)       today.push(s);
+      else if (diff < 604_800_000) week.push(s);
+      else                          older.push(s);
+    });
+    const groups: { label: string; items: SidebarChatSession[] }[] = [];
+    if (today.length) groups.push({ label: "Today", items: today });
+    if (week.length)  groups.push({ label: "This Week", items: week });
+    if (older.length) groups.push({ label: "Older", items: older });
+    return groups;
+  })();
 
   return (
     <aside
@@ -318,6 +409,161 @@ export function Sidebar() {
             </div>
           );
         })}
+
+        {/* ── Chat history (agent-catalog only) ───────────────────────────── */}
+        {pathname === "/agent-catalog" && showLabels && (
+          <div className="pt-3 mx-1" style={{ borderTop: "1px solid var(--sidebar-border)" }}>
+
+            {/* Section label */}
+            <p className="px-3 pb-2 text-[10px] font-bold uppercase tracking-widest" style={{ color: "var(--sidebar-foreground)", opacity: 0.4 }}>
+              Conversations
+            </p>
+
+            {/* New chat button */}
+            <div className="px-2 pb-2">
+              <button
+                onClick={() => window.dispatchEvent(new CustomEvent("agent-catalog-new-chat"))}
+                className="w-full flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold transition-all"
+                style={{ background: "var(--sidebar-accent)", color: "var(--sidebar-primary)", border: "1px solid var(--sidebar-border)" }}
+                onMouseEnter={e => (e.currentTarget.style.opacity = "0.8")}
+                onMouseLeave={e => (e.currentTarget.style.opacity = "1")}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+                New chat
+              </button>
+            </div>
+
+            {/* Search */}
+            <div className="px-2 pb-2">
+              <input
+                value={chatSearch}
+                onChange={e => setChatSearch(e.target.value)}
+                placeholder="Search conversations…"
+                className="w-full px-2.5 py-1.5 text-[11px] rounded-lg outline-none focus:ring-1"
+                style={{
+                  background: "var(--sidebar-accent)",
+                  color: "var(--sidebar-foreground)",
+                  border: "1px solid var(--sidebar-border)",
+                }}
+              />
+            </div>
+
+            {/* Session list */}
+            <div
+              className="overflow-y-auto space-y-2 pb-3"
+              style={{ maxHeight: "38vh", scrollbarWidth: "thin", scrollbarColor: "hsl(var(--border)) transparent" }}
+            >
+              {chatLoading && (
+                <p className="text-[10px] text-center py-4" style={{ color: "var(--sidebar-foreground)", opacity: 0.4 }}>Loading…</p>
+              )}
+              {!chatLoading && chatSessions.length === 0 && (
+                <p className="text-[10px] text-center py-4 px-2 leading-relaxed" style={{ color: "var(--sidebar-foreground)", opacity: 0.4 }}>
+                  No chats yet. Start a conversation.
+                </p>
+              )}
+              {!chatLoading && chatSessionGroups.map(group => (
+                <div key={group.label}>
+                  <p className="px-3 py-1 text-[9px] font-bold uppercase tracking-widest" style={{ color: "var(--sidebar-foreground)", opacity: 0.35 }}>
+                    {group.label}
+                  </p>
+                  {group.items.map(s => (
+                    <div
+                      key={s.session_id}
+                      className="group/item relative mx-1 flex items-start gap-1 px-2.5 py-2 rounded-lg cursor-pointer transition-colors"
+                      style={s.session_id === activeChatId
+                        ? { background: "var(--sidebar-accent)", color: "var(--sidebar-accent-foreground)" }
+                        : { color: "var(--sidebar-foreground)" }
+                      }
+                      onClick={() => {
+                        setOpenMenuId(null);
+                        setActiveChatId(s.session_id);
+                        window.dispatchEvent(new CustomEvent("agent-catalog-load-session", { detail: { session: s } }));
+                      }}
+                      onMouseEnter={e => { if (s.session_id !== activeChatId) (e.currentTarget as HTMLElement).style.background = "var(--sidebar-accent)"; }}
+                      onMouseLeave={e => { if (s.session_id !== activeChatId) (e.currentTarget as HTMLElement).style.background = "transparent"; }}
+                    >
+                      {/* Text */}
+                      <div className="flex-1 min-w-0 pr-1">
+                        <p className="text-[11px] font-medium truncate leading-snug">{s.title ?? "Untitled"}</p>
+                        <p className="text-[9px] mt-0.5" style={{ opacity: 0.45 }}>{fmtChatDate(s.last_message_at)}</p>
+                      </div>
+
+                      {/* Action buttons — visible on hover */}
+                      <div className="shrink-0 flex items-center gap-0.5 opacity-0 group-hover/item:opacity-100 transition-opacity">
+                        <button
+                          onClick={e => {
+                            e.stopPropagation();
+                            setOpenMenuId(openMenuId === s.session_id ? null : s.session_id);
+                          }}
+                          className="w-5 h-5 flex items-center justify-center rounded text-[13px] font-bold leading-none hover:bg-black/10"
+                          style={{ color: "var(--sidebar-foreground)" }}
+                          title="More options"
+                        >
+                          ···
+                        </button>
+                        <button
+                          onClick={e => {
+                            e.stopPropagation();
+                            handleDeleteSession(s.session_id);
+                          }}
+                          className="w-5 h-5 flex items-center justify-center rounded text-[13px] font-bold leading-none hover:bg-red-100 hover:text-red-600 transition-colors"
+                          style={{ color: deletingId === s.session_id ? "transparent" : "var(--sidebar-foreground)" }}
+                          title="Delete conversation"
+                          disabled={deletingId === s.session_id}
+                        >
+                          {deletingId === s.session_id ? (
+                            <span className="w-2.5 h-2.5 rounded-full border border-current border-t-transparent animate-spin" />
+                          ) : "×"}
+                        </button>
+                      </div>
+
+                      {/* Dropdown menu */}
+                      {openMenuId === s.session_id && (
+                        <div
+                          className="absolute right-0 top-full mt-1 z-50 w-40 rounded-xl shadow-lg overflow-hidden"
+                          style={{ background: "var(--sidebar)", border: "1px solid var(--sidebar-border)" }}
+                          onClick={e => e.stopPropagation()}
+                        >
+                          <button
+                            className="w-full flex items-center gap-2 px-3 py-2 text-[11px] font-medium text-left transition-colors hover:bg-blue-50 hover:text-blue-700"
+                            onClick={() => {
+                              const url = `${window.location.origin}/share/${s.session_id}`;
+                              navigator.clipboard.writeText(url).then(() => {
+                                setCopiedId(s.session_id);
+                                setOpenMenuId(null);
+                                setTimeout(() => setCopiedId(null), 2500);
+                              });
+                            }}
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                            Copy share link
+                          </button>
+                          <button
+                            className="w-full flex items-center gap-2 px-3 py-2 text-[11px] font-medium text-left transition-colors hover:bg-blue-50 hover:text-blue-700"
+                            onClick={() => {
+                              setOpenMenuId(null);
+                              window.open(`/share/${s.session_id}`, "_blank");
+                            }}
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" x2="21" y1="14" y2="3"/></svg>
+                            Open in new tab
+                          </button>
+                        </div>
+                      )}
+
+                      {/* Copied confirmation badge */}
+                      {copiedId === s.session_id && (
+                        <span className="absolute right-2 -top-6 text-[10px] font-semibold bg-green-600 text-white px-2 py-0.5 rounded-full shadow-sm">
+                          Copied!
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </nav>
 
       {/* ── User profile footer ────────────────────────────────────────────── */}

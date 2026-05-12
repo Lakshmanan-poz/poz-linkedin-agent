@@ -4,13 +4,12 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PostStatusBadge } from "@/components/posts/post-status-badge";
 import { PostTypeBadge } from "@/components/posts/post-type-badge";
-import { ALL_STATUSES, ALL_POST_TYPES, POST_STATUS_LABELS, POST_TYPE_LABELS } from "@/lib/constants";
-import { Post, PostStatus, PostType, TeamMember } from "@/lib/types";
+import { POST_TYPE_LABELS } from "@/lib/constants";
+import { Post, PostStatus, PostType } from "@/lib/types";
 
 /* ─── Icons ──────────────────────────────────────────────────────────────────── */
 const IconTable = () => (
@@ -173,31 +172,20 @@ function ViewBtn({ active, onClick, icon, title }: { active: boolean; onClick: (
 
 /* ─── Main page ──────────────────────────────────────────────────────────────── */
 export default function PostsPage() {
-  const [posts,        setPosts]        = useState<Post[]>([]);
-  const [team,         setTeam]         = useState<TeamMember[]>([]);
-  const [loading,      setLoading]      = useState(true);
-  const [statusFilter, setStatusFilter] = useState("");
-  const [typeFilter,   setTypeFilter]   = useState("");
-  const [authorFilter, setAuthorFilter] = useState("");
-  const [search,       setSearch]       = useState("");
-  const [view,         setView]         = useState<"table"|"cards"|"kanban">("cards");
-
-  useEffect(() => {
-    fetch("/api/team").then(r => r.json()).then(setTeam).catch(() => {});
-  }, []);
+  const [posts,   setPosts]   = useState<Post[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [search,  setSearch]  = useState("");
+  const [view,    setView]    = useState<"table"|"cards"|"kanban">("cards");
 
   useEffect(() => {
     const p = new URLSearchParams();
-    if (statusFilter) p.set("status",    statusFilter);
-    if (typeFilter)   p.set("post_type", typeFilter);
-    if (authorFilter) p.set("author_id", authorFilter);
-    if (search)       p.set("search",    search);
+    if (search) p.set("search", search);
     setLoading(true);
     fetch(`/api/posts?${p}`)
       .then(r => r.json())
       .then(d => { setPosts(Array.isArray(d) ? d : []); setLoading(false); })
       .catch(() => setLoading(false));
-  }, [statusFilter, typeFilter, authorFilter, search]);
+  }, [search]);
 
   return (
     <div className="space-y-6">
@@ -227,34 +215,6 @@ export default function PostsPage() {
             onChange={e => setSearch(e.target.value)}
             className="w-52"
           />
-          <Select value={statusFilter} onValueChange={v => setStatusFilter(v === "all" ? "" : v)}>
-            <SelectTrigger className="w-[148px]"><SelectValue placeholder="All Statuses" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Statuses</SelectItem>
-              {ALL_STATUSES.map(s => <SelectItem key={s} value={s}>{POST_STATUS_LABELS[s]}</SelectItem>)}
-            </SelectContent>
-          </Select>
-          <Select value={typeFilter} onValueChange={v => setTypeFilter(v === "all" ? "" : v)}>
-            <SelectTrigger className="w-[148px]"><SelectValue placeholder="All Types" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Types</SelectItem>
-              {ALL_POST_TYPES.map(t => <SelectItem key={t} value={t}>{POST_TYPE_LABELS[t]}</SelectItem>)}
-            </SelectContent>
-          </Select>
-          <Select value={authorFilter} onValueChange={v => setAuthorFilter(v === "all" ? "" : v)}>
-            <SelectTrigger className="w-[148px]"><SelectValue placeholder="All Authors" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Authors</SelectItem>
-              {team.map(m => (
-                <SelectItem key={m.id} value={m.id.toString()}>
-                  <div className="flex items-center gap-2">
-                    <Avatar name={m.name} size={16} />
-                    {m.name}
-                  </div>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
         </div>
 
         {/* View toggle */}

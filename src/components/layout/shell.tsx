@@ -8,7 +8,7 @@ import { ReactNode } from "react";
 export function Shell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
 
-  if (pathname === "/login") {
+  if (pathname === "/login" || pathname.startsWith("/share/")) {
     return <>{children}</>;
   }
 

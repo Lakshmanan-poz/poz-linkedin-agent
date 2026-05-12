@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { PostStatusBadge } from "@/components/posts/post-status-badge";
 import { PostTypeBadge } from "@/components/posts/post-type-badge";
-import { ALL_STATUSES, POST_STATUS_LABELS, POST_STATUS_COLORS } from "@/lib/constants";
 import { Post, PostStatus } from "@/lib/types";
 
 export default function ContentStatusPage() {
@@ -18,20 +17,31 @@ export default function ContentStatusPage() {
       .catch(() => setLoading(false));
   }, []);
 
-  const byStatus = ALL_STATUSES.reduce<Record<PostStatus, Post[]>>((acc, s) => {
-    acc[s] = posts.filter((p) => p.status === s);
-    return acc;
-  }, {} as Record<PostStatus, Post[]>);
-
-  const PIPELINE_STAGES: PostStatus[] = [
-    "draft",
-    "submitted",
-    "under_review",
-    "changes_requested",
-    "approved_for_design",
-    "design_in_progress",
-    "ready_to_publish",
-    "published",
+  const STAGES = [
+    {
+      label: "Draft",
+      color: "bg-gray-100 dark:bg-gray-800",
+      textColor: "text-gray-700 dark:text-gray-300",
+      statuses: ["draft"] as PostStatus[],
+    },
+    {
+      label: "In Review",
+      color: "bg-yellow-50 dark:bg-yellow-900/20",
+      textColor: "text-yellow-700 dark:text-yellow-400",
+      statuses: ["submitted", "under_review", "changes_requested"] as PostStatus[],
+    },
+    {
+      label: "In Design",
+      color: "bg-blue-50 dark:bg-blue-900/20",
+      textColor: "text-blue-700 dark:text-blue-400",
+      statuses: ["approved_for_design", "design_in_progress"] as PostStatus[],
+    },
+    {
+      label: "Publishing",
+      color: "bg-green-50 dark:bg-green-900/20",
+      textColor: "text-green-700 dark:text-green-400",
+      statuses: ["ready_to_publish", "published"] as PostStatus[],
+    },
   ];
 
   return (
@@ -45,17 +55,15 @@ export default function ContentStatusPage() {
 
       {/* Summary row */}
       <div className="grid grid-cols-4 gap-3">
-        {[
-          { label: "In Pipeline", count: posts.filter((p) => p.status !== "published" && p.status !== "draft").length },
-          { label: "Needs Attention", count: byStatus.changes_requested.length },
-          { label: "Ready to Publish", count: byStatus.ready_to_publish.length },
-          { label: "Published", count: byStatus.published.length },
-        ].map((s) => (
-          <div key={s.label} className="border rounded-lg p-4">
-            <p className="text-2xl font-bold">{s.count}</p>
-            <p className="text-sm text-muted-foreground">{s.label}</p>
-          </div>
-        ))}
+        {STAGES.map((stage) => {
+          const count = posts.filter((p) => (stage.statuses as string[]).includes(p.status)).length;
+          return (
+            <div key={stage.label} className="border rounded-lg p-4">
+              <p className="text-2xl font-bold">{count}</p>
+              <p className="text-sm text-muted-foreground">{stage.label}</p>
+            </div>
+          );
+        })}
       </div>
 
       {/* Pipeline columns */}
@@ -63,13 +71,13 @@ export default function ContentStatusPage() {
         <div className="text-center py-12 text-muted-foreground">Loading posts…</div>
       ) : (
         <div className="grid grid-cols-1 gap-4">
-          {PIPELINE_STAGES.map((status) => {
-            const stagePosts = byStatus[status];
+          {STAGES.map((stage) => {
+            const stagePosts = posts.filter((p) => (stage.statuses as string[]).includes(p.status));
             return (
-              <div key={status} className="border rounded-lg overflow-hidden">
-                <div className={`px-4 py-2 flex items-center justify-between ${POST_STATUS_COLORS[status]}`}>
-                  <span className="font-semibold text-sm">{POST_STATUS_LABELS[status]}</span>
-                  <span className="text-sm font-bold">{stagePosts.length}</span>
+              <div key={stage.label} className="border rounded-lg overflow-hidden">
+                <div className={`px-4 py-2 flex items-center justify-between ${stage.color}`}>
+                  <span className={`font-semibold text-sm ${stage.textColor}`}>{stage.label}</span>
+                  <span className={`text-sm font-bold ${stage.textColor}`}>{stagePosts.length}</span>
                 </div>
 
                 {stagePosts.length === 0 ? (

@@ -56,6 +56,34 @@ const ICON_MAP: Record<string, React.ReactNode> = {
   target:    <IconTarget />,
 };
 
+/* ─── Generating progress bar ───────────────────────────────────────────────── */
+function GeneratingProgressBar({ label }: { label?: string }) {
+  const [progress, setProgress] = React.useState(0);
+  React.useEffect(() => {
+    const id = setInterval(() => {
+      setProgress(prev => {
+        if (prev >= 97) return prev;
+        return Math.min(97, prev + (97 - prev) * 0.04 + 0.3);
+      });
+    }, 120);
+    return () => clearInterval(id);
+  }, []);
+  return (
+    <div className="py-1 w-64 space-y-1.5">
+      <div className="flex items-center justify-between">
+        <span className="text-[12px] text-muted-foreground truncate pr-2">{label || "Generating…"}</span>
+        <span className="text-[12px] font-semibold text-foreground shrink-0">{Math.round(progress)}%</span>
+      </div>
+      <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "var(--muted)" }}>
+        <div
+          className="h-full rounded-full transition-all duration-150"
+          style={{ width: `${progress}%`, background: "linear-gradient(90deg,#f97316,#ef4444,#ec4899)" }}
+        />
+      </div>
+    </div>
+  );
+}
+
 /* ─── POZ star logo ─────────────────────────────────────────────────────────── */
 function PozStar({ size = 8 }: { size?: number }) {
   const s = size * 4;
@@ -652,6 +680,7 @@ async function submitForReview(params: {
       platform: "linkedin", author_id: params.userId,
       carousel_slides: params.carouselSlides ?? null,
       hashtags: params.hashtags ?? null, status: "draft",
+      ai_model: "agent-catalog",
     }),
   });
   if (!createRes.ok) throw new Error((await createRes.json()).error ?? "Failed to create post");
@@ -1038,181 +1067,23 @@ function CarouselHtmlPreview({ slides, accentOverride }: {
 function DailyResultCard({ data, userId, userName }: { data: DailyResult; userId?: number; userName?: string }) {
   const sentKey = `poz-sent-${data.day}-${data.topic.slice(0, 50).replace(/\W+/g, "-")}`;
 
-  const [saving,          setSaving]          = React.useState(false);
-  const [saved,           setSaved]           = React.useState(false);
-  const [submitting,      setSubmitting]      = React.useState(false);
-  const [submitted,       setSubmitted]       = React.useState(false);
-  const [showConfirm,     setShowConfirm]     = React.useState(false);
-  const [pdfLoading,      setPdfLoading]      = React.useState(false);
-  const [pdfError,        setPdfError]        = React.useState("");
-  const [refinePrompt,    setRefinePrompt]    = React.useState("");
-  const [refining,        setRefining]        = React.useState(false);
-  const [refineError,     setRefineError]     = React.useState("");
-  const [colorOverride,   setColorOverride]   = React.useState<string | null>(null); // stores accent hex only
-  const [htmlSlides,      setHtmlSlides]      = React.useState<SlideWithHtml[] | null>(null);
-  const [htmlLoading,     setHtmlLoading]     = React.useState(false);
-  const [htmlError,       setHtmlError]       = React.useState("");
+  const cardRef = React.useRef<HTMLDivElement>(null);
 
-  // Stable cache key for this exact carousel (topic + day + slide fingerprint)
-  const cacheKey = React.useMemo(() => {
-    const raw = data.topic + "|" + data.day + "|" + (data.slides || []).map(s => s.position + s.type + s.title).join("~");
-    let h = 0;
-    for (let i = 0; i < raw.length; i++) h = (Math.imul(31, h) + raw.charCodeAt(i)) | 0;
-    return `poz-html-${Math.abs(h)}`;
-  }, [data.topic, data.day, data.slides]);
+  const [saving,      setSaving]      = React.useState(false);
+  const [saved,       setSaved]       = React.useState(false);
+  const [submitting,  setSubmitting]  = React.useState(false);
+  const [submitted,   setSubmitted]   = React.useState(false);
+  const [showConfirm, setShowConfirm] = React.useState(false);
 
-  // On mount: load from cache OR generate fresh
+  /* Scroll this card into view when it first mounts so the user always sees it */
   React.useEffect(() => {
-    if (!data.slides || data.slides.length === 0) return;
-    if (htmlSlides || htmlLoading) return;
-    try {
-      const cached = localStorage.getItem(cacheKey);
-      if (cached) {
-        setHtmlSlides(JSON.parse(cached));
-        return; // served from cache — no API call
-      }
-    } catch { /* ignore parse/quota errors */ }
-    generateClaudeHtml(false);
+    const t = setTimeout(() => {
+      cardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 120);
+    return () => clearTimeout(t);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data.slides, cacheKey]);
+  }, []);
 
-  async function generateClaudeHtml(forceNew = false) {
-    if (!data.slides || data.slides.length === 0) return;
-    if (forceNew) {
-      try { localStorage.removeItem(cacheKey); } catch { /* ignore */ }
-    }
-    setHtmlLoading(true);
-    setHtmlError("");
-    try {
-      const res = await fetch("/api/agents/carousel-html", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ slides: data.slides, topic: data.topic }),
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error ?? "Claude design generation failed");
-      setHtmlSlides(json.slides);
-      try { localStorage.setItem(cacheKey, JSON.stringify(json.slides)); } catch { /* quota full */ }
-    } catch (e) {
-      setHtmlError(e instanceof Error ? e.message : "Failed to generate design");
-    } finally {
-      setHtmlLoading(false);
-    }
-  }
-
-  async function applyDesignChange() {
-    if (!refinePrompt.trim()) return;
-    setRefining(true);
-    setRefineError("");
-    try {
-      const res = await fetch("/api/agents/carousel-refine", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: refinePrompt.trim(), currentParams: { accentColor: colorOverride ?? "#009FF0" } }),
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error ?? "Failed to apply changes");
-      setColorOverride(json.accentColor ?? "#009FF0");
-      setRefinePrompt("");
-    } catch (e) {
-      setRefineError(e instanceof Error ? e.message : "Failed to apply changes");
-    } finally {
-      setRefining(false);
-    }
-  }
-
-  async function downloadPdf() {
-    const slides = (data.slides || []) as SlideWithHtml[];
-    if (!slides.length) return;
-    setPdfLoading(true);
-    setPdfError("");
-
-    // Lock scroll so the 1024px capture div never triggers a horizontal scrollbar
-    document.documentElement.style.overflow = "hidden";
-
-    try {
-      const [{ toJpeg }, { jsPDF }] = await Promise.all([
-        import("html-to-image"),
-        import("jspdf"),
-      ]);
-
-      await document.fonts.ready;
-      await Promise.allSettled([
-        document.fonts.load('400 185px "Bebas Neue"'),
-        document.fonts.load('400 144px "Bebas Neue"'),
-        document.fonts.load('400 120px "Bebas Neue"'),
-        document.fonts.load('400 100px "Bebas Neue"'),
-        document.fonts.load('400 40px "Bebas Neue"'),
-        document.fonts.load('400 28px "Bebas Neue"'),
-        document.fonts.load('700 36px "Inter"'),
-        document.fonts.load('400 32px "Inter"'),
-        document.fonts.load('600 28px "Inter"'),
-      ]);
-
-      const doc = new jsPDF({ orientation: "portrait", unit: "px", format: [1024, 1280], compress: true });
-      const renderSlides = htmlSlides || slides;
-      let successCount = 0;
-
-      for (let i = 0; i < renderSlides.length; i++) {
-        let html = renderSlides[i].slideHtml || fallbackSlideHtml(renderSlides[i]);
-        if (colorOverride) html = applyColorOverride(html, colorOverride);
-
-        // opacity:0 — invisible to the user but the browser still fully paints
-        // and rasterises the element (unlike visibility:hidden / display:none).
-        // position:fixed;top:0;left:0 keeps it in the viewport so the paint
-        // compositor never skips it (off-screen elements produce black JPEGs).
-        // style:{opacity:"1"} in toJpeg overrides the 0 only on the clone used
-        // for capture, so the exported JPEG has full opacity.
-        const div = document.createElement("div");
-        div.style.cssText = [
-          "position:fixed;top:0;left:0;",
-          "width:1024px;height:1280px;",
-          "overflow:hidden;",
-          "opacity:0;",
-          "pointer-events:none;",
-        ].join("");
-        const cleanHtml = html.replace(/<link\b[^>]*>/gi, "");
-        div.innerHTML = cleanHtml;
-        document.body.appendChild(div);
-
-        try {
-          await new Promise(r => requestAnimationFrame(r));
-          await new Promise(r => requestAnimationFrame(r));
-
-          const jpeg = await toJpeg(div, {
-            width: 1024,
-            height: 1280,
-            pixelRatio: 1,
-            quality: 0.88,
-            skipFonts: true,
-            cacheBust: false,
-            style: { opacity: "1" },
-          });
-
-          if (successCount > 0 || i > 0) doc.addPage();
-          doc.addImage(jpeg, "JPEG", 0, 0, 1024, 1280);
-          successCount++;
-        } catch (slideErr) {
-          console.error(`[downloadPdf] slide ${i + 1} failed:`, slideErr);
-        } finally {
-          if (document.body.contains(div)) document.body.removeChild(div);
-        }
-      }
-
-      if (successCount === 0) {
-        throw new Error(`All ${renderSlides.length} slides failed to render. Check browser console for details.`);
-      }
-
-      doc.save(`${data.topic.slice(0, 40).replace(/\W+/g, "-")}-carousel.pdf`);
-
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : "PDF generation failed";
-      setPdfError(`${msg} — try a Chromium-based browser if this persists`);
-    } finally {
-      document.documentElement.style.overflow = "";
-      setPdfLoading(false);
-    }
-  }
   const dc = DAY_CFG[data.day] ?? DAY_CFG["Monday"];
 
   // Restore one-time-send state from localStorage on mount
@@ -1264,8 +1135,10 @@ function DailyResultCard({ data, userId, userName }: { data: DailyResult; userId
         title: `${data.day} — ${dc.type} — ${data.topic}`,
         content,
         postType: data.slides?.length > 0 ? "carousel" : "educational",
-        carouselSlides: data.slides?.length > 0 ? JSON.stringify(data.slides) : undefined,
-        hashtags: data.hashtags?.join(" "),
+        carouselSlides: data.slides?.length > 0
+          ? JSON.stringify({ type: "daily", slides: data.slides, caption: data.caption ?? "", hashtags: data.hashtags ?? [] })
+          : undefined,
+        hashtags: JSON.stringify(data.hashtags ?? []),
         userId,
       });
       setSubmitted(true);
@@ -1276,7 +1149,7 @@ function DailyResultCard({ data, userId, userName }: { data: DailyResult; userId
   }
 
   return (
-    <div className="space-y-5">
+    <div ref={cardRef} className="space-y-5">
 
       {/* ── Confirmation popup ── */}
       {showConfirm && (
@@ -1484,97 +1357,19 @@ function DailyResultCard({ data, userId, userName }: { data: DailyResult; userId
         </div>
       )}
 
-      {/* ── Carousel Slide Designer ── */}
-      {data.slides && data.slides.length > 0 && (
-        <div className="rounded-xl border-2 border-dashed border-[#009FF0]/40 bg-[#009FF0]/5 p-4 space-y-4">
-          {/* Header */}
-          <div className="flex items-center gap-2">
-            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#009FF0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
-            <span className="text-[11px] font-bold uppercase tracking-widest text-[#009FF0]">Carousel Slide Designer</span>
-            <span className="text-[10px] text-muted-foreground ml-auto">{data.slides.length} slides · Claude Design</span>
-            {!htmlLoading && (
-              <button onClick={() => generateClaudeHtml(true)} className="text-[10px] text-[#009FF0] border border-[#009FF0]/40 rounded px-2 py-0.5 hover:bg-[#009FF0]/10 transition-colors">
-                Redesign
-              </button>
-            )}
-          </div>
-
-          {/* ── Claude-generated HTML preview ── */}
-          {htmlLoading ? (
-            <div className="flex flex-col items-center justify-center gap-3 py-10">
-              <svg className="animate-spin w-6 h-6 text-[#009FF0]" viewBox="0 0 24 24" fill="none">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
-              </svg>
-              <p className="text-xs text-muted-foreground">Claude is designing your slides…</p>
-            </div>
-          ) : htmlError ? (
-            <div className="space-y-2">
-              <p className="text-[11px] text-red-500">{htmlError}</p>
-              <button onClick={() => generateClaudeHtml(true)} className="text-xs text-[#009FF0] underline">Retry design</button>
-            </div>
-          ) : (
-            <CarouselHtmlPreview
-              slides={htmlSlides || (data.slides as SlideWithHtml[])}
-              accentOverride={colorOverride ?? undefined}
-            />
-          )}
-
-          {/* ── Design change prompt ── */}
-          <div className="space-y-2">
-            <p className="text-[10px] text-muted-foreground font-medium">Not happy with the design? Describe what to change:</p>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={refinePrompt}
-                onChange={e => setRefinePrompt(e.target.value)}
-                onKeyDown={e => { if (e.key === "Enter" && !refining) applyDesignChange(); }}
-                placeholder='e.g. "dark mode" · "orange accent" · "green theme"'
-                className="flex-1 text-xs px-3 py-2 rounded-lg border border-border bg-background focus:outline-none focus:ring-1 focus:ring-[#009FF0]/50"
-              />
-              <button
-                onClick={applyDesignChange}
-                disabled={refining || !refinePrompt.trim()}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold text-white disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                style={{ background: "linear-gradient(135deg,#0080d0,#009FF0)" }}
-              >
-                {refining ? <svg className="animate-spin w-3 h-3" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/></svg>
-                  : <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>}
-                Apply
-              </button>
-            </div>
-            {refineError && <p className="text-[10px] text-red-500">{refineError}</p>}
-          </div>
-
-          {/* ── Download PDF ── */}
-          <div className="flex items-center gap-2 flex-wrap pt-1 border-t border-[#009FF0]/20">
-            <button
-              onClick={downloadPdf}
-              disabled={pdfLoading}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold text-white transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
-              style={{ background: pdfLoading ? "#009FF099" : "linear-gradient(135deg,#0080d0,#009FF0)", boxShadow: pdfLoading ? "none" : "0 4px 14px rgba(0,159,240,0.35)" }}
-            >
-              {pdfLoading ? (
-                <><svg className="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/></svg>Building PDF…</>
-              ) : (
-                <><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>Download PDF</>
-              )}
-            </button>
-            {pdfError && (
-              <p className="text-[11px] text-red-500 flex items-center gap-1.5 w-full">
-                <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-                {pdfError}
-              </p>
-            )}
-          </div>
-        </div>
-      )}
 
     </div>
   );
 }
 
 function CalendarResultCard({ data, userId }: { data: CalendarResult; userId?: number }) {
+  const cardRef = React.useRef<HTMLDivElement>(null);
+  React.useEffect(() => {
+    const t = setTimeout(() => cardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 120);
+    return () => clearTimeout(t);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const [saving,     setSaving]     = React.useState(false);
   const [saved,      setSaved]      = React.useState(false);
   const [submitting, setSubmitting] = React.useState(false);
@@ -1670,6 +1465,13 @@ function CopyBtn({ text, label = "Copy" }: { text: string; label?: string }) {
 }
 
 function RefinerResultCard({ data, userId }: { data: RefinerResult; userId?: number }) {
+  const cardRef = React.useRef<HTMLDivElement>(null);
+  React.useEffect(() => {
+    const t = setTimeout(() => cardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 120);
+    return () => clearTimeout(t);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const [saving,     setSaving]     = React.useState(false);
   const [saved,      setSaved]      = React.useState(false);
   const [submitting, setSubmitting] = React.useState(false);
@@ -2356,7 +2158,7 @@ function uuid(): string {
 
 /* ─── Main page ─────────────────────────────────────────────────────────────── */
 export default function AgentCatalogPage() {
-  const { currentUser } = useUser();
+  const { currentUser, authRole } = useUser();
 
   /* skill detail state */
 
@@ -2421,6 +2223,13 @@ export default function AgentCatalogPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messages]);
 
+  /* keep sidebar in sync: broadcast sessions + active id */
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent("agent-catalog-sessions-updated", {
+      detail: { sessions, activeId: sessionId },
+    }));
+  }, [sessions, sessionId]);
+
   /* action menu state */
   const [showMenu,         setShowMenu]         = useState(false);
   const [subMenu,          setSubMenu]          = useState<"skills" | "connection" | null>(null);
@@ -2439,9 +2248,50 @@ export default function AgentCatalogPage() {
   const [editingMsgId, setEditingMsgId] = useState<string | null>(null);
   const [editText,     setEditText]     = useState("");
 
+  /* listen for sidebar new-chat / load-session events */
+  useEffect(() => {
+    const handleNew = () => {
+      setMessages([]);
+      setSessionId(uuid());
+      setPendingQ(null);
+      setSelectedSkills([]);
+      setUploadedFiles([]);
+      setUploadedDocs([]);
+      setInputText("");
+      setEditingMsgId(null);
+    };
+    const handleLoad = (e: Event) => {
+      const session = (e as CustomEvent).detail?.session as ChatSession;
+      if (!session) return;
+      setMessages((session.messages as ChatMsg[]) || []);
+      setSessionId(session.session_id);
+      setPendingQ(null);
+      setSelectedSkills([]);
+      setUploadedFiles([]);
+      setUploadedDocs([]);
+      setInputText("");
+      setEditingMsgId(null);
+    };
+    window.addEventListener("agent-catalog-new-chat", handleNew);
+    window.addEventListener("agent-catalog-load-session", handleLoad);
+    return () => {
+      window.removeEventListener("agent-catalog-new-chat", handleNew);
+      window.removeEventListener("agent-catalog-load-session", handleLoad);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  /* stop generation — clears generating messages immediately */
+  function handleStop() {
+    setMessages(prev => prev.map(m =>
+      m.generating ? { ...m, generating: false, text: "Generation stopped." } : m
+    ));
+    setPendingQ(null);
+  }
 
   function autoResize() {
     const el = textareaRef.current;
@@ -2453,9 +2303,14 @@ export default function AgentCatalogPage() {
   const userName  = currentUser?.name ?? "";
   const firstName = userName.split(" ")[0] || "there";
 
-  /* scroll to bottom on new messages */
+  /* scroll to bottom on new messages — skip when last message has a result card (card self-scrolls) */
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    const lastMsg = messages[messages.length - 1];
+    if (lastMsg?.resultType) return;
+    const t = setTimeout(() => {
+      chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }, 250);
+    return () => clearTimeout(t);
   }, [messages]);
 
 
@@ -2705,23 +2560,11 @@ export default function AgentCatalogPage() {
       try {
         const opts = isSinglePage ? { singlePage: true } : carouselRequest ? { slideCount: slides } : undefined;
         const data = await generateFromChat(intent, text, opts);
-        const daily = data as DailyResult;
-        // Show the carousel first, then append quality audit as a separate message
         setMessages((prev) => prev.map((m) =>
           m.id === agentId
-            ? { ...m, generating: false, text: "Here you go:", resultType: "daily-content" as EmbedType, resultData: daily }
+            ? { ...m, generating: false, text: "Here you go:", resultType: "daily-content" as EmbedType, resultData: data }
             : m
         ));
-        if (!isSinglePage && daily.slides?.length > 1) {
-          const refined = await autoRefineContent(daily);
-          if (refined) {
-            setMessages((prev) => [...prev, {
-              id: uuid(), role: "agent" as const, generating: false,
-              text: "Quality audit:",
-              resultType: "content-refiner" as EmbedType, resultData: refined,
-            }]);
-          }
-        }
       } catch (e) {
         const msg = e instanceof Error ? e.message : "Generation failed";
         setMessages((prev) => prev.map((m) =>
@@ -2807,25 +2650,12 @@ export default function AgentCatalogPage() {
         const slides = routed.slideCount ?? 8;
         const isSingle = !routed.isCarousel;
         const opts = routed.isCarousel ? { slideCount: slides } : { singlePage: true };
-        // Hidden Thinking Layer — no intermediate text
         const data = await generateFromChat("daily-content", topic, opts);
-        const daily = data as DailyResult;
-        // Show the carousel first, then append quality audit as a separate message
         setMessages((prev) => prev.map((m) =>
           m.id === agentId
             ? { ...m, generating: false, text: "Here you go:", resultType: "daily-content", resultData: data }
             : m
         ));
-        if (!isSingle && daily.slides?.length > 1) {
-          const refined = await autoRefineContent(daily);
-          if (refined) {
-            setMessages((prev) => [...prev, {
-              id: uuid(), role: "agent" as const, generating: false,
-              text: "Quality audit:",
-              resultType: "content-refiner" as EmbedType, resultData: refined,
-            }]);
-          }
-        }
         return;
       }
 
@@ -3374,16 +3204,6 @@ export default function AgentCatalogPage() {
         />
       )}
 
-      {/* ── Left history panel ──────────────────────────────────────────── */}
-      <HistoryPanel
-        sessions={sessions}
-        activeId={sessionId}
-        loading={loadingHistory}
-        onSelect={loadSession}
-        onNew={newChat}
-        onDelete={deleteSession}
-      />
-
     <div className="flex flex-col flex-1 min-h-0 min-w-0">
 
       {/* ── Messages area ──────────────────────────────────────────────────── */}
@@ -3500,17 +3320,9 @@ export default function AgentCatalogPage() {
                     <PozStar size={8} />
                   </div>
                   <div className="flex-1 min-w-0 space-y-3 pt-0.5">
-                    {/* Generating: three bouncing dots */}
+                    {/* Generating: progress bar 0→100 */}
                     {msg.generating ? (
-                      <div className="flex items-center gap-1.5 h-7">
-                        {[0, 160, 320].map((d) => (
-                          <span
-                            key={d}
-                            className="w-2 h-2 rounded-full bg-muted-foreground/50 animate-bounce"
-                            style={{ animationDelay: `${d}ms`, animationDuration: "1s" }}
-                          />
-                        ))}
-                      </div>
+                      <GeneratingProgressBar label={msg.text || undefined} />
                     ) : (
                       <>
                         {/* Message text */}
@@ -3908,25 +3720,32 @@ export default function AgentCatalogPage() {
                 </button>
               </div>
 
-              {/* Right: hint + send */}
+              {/* Right: hint + send/stop */}
               <div className="flex items-center gap-2">
                 <span className="text-[11px] text-muted-foreground/40 font-medium hidden sm:block select-none">POZ Agents</span>
-                <button
-                  onClick={() => handleSend()}
-                  disabled={!inputText.trim() || isGenerating}
-                  className={cn(
-                    "w-8 h-8 rounded-full flex items-center justify-center transition-all",
-                    inputText.trim() && !isGenerating
-                      ? "bg-foreground text-background hover:opacity-75"
-                      : "bg-muted text-muted-foreground cursor-not-allowed"
-                  )}
-                  title={isGenerating ? "Generating…" : "Send"}
-                >
-                  {isGenerating
-                    ? <svg className="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
-                    : <IconArrowUp />
-                  }
-                </button>
+                {isGenerating ? (
+                  <button
+                    onClick={handleStop}
+                    className="w-8 h-8 rounded-full flex items-center justify-center bg-foreground text-background hover:opacity-75 transition-all"
+                    title="Stop generation"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="4" width="16" height="16" rx="2"/></svg>
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => handleSend()}
+                    disabled={!inputText.trim()}
+                    className={cn(
+                      "w-8 h-8 rounded-full flex items-center justify-center transition-all",
+                      inputText.trim()
+                        ? "bg-foreground text-background hover:opacity-75"
+                        : "bg-muted text-muted-foreground cursor-not-allowed"
+                    )}
+                    title="Send"
+                  >
+                    <IconArrowUp />
+                  </button>
+                )}
               </div>
             </div>
           </div>
