@@ -81,8 +81,9 @@ function VerticalBarChart({
               x={cx}
               y={height + 8}
               textAnchor="end"
-              fontSize={9}
-              fill="#9ca3af"
+              fontSize={10}
+              fontWeight="600"
+              fill="#4b5563"
               transform={`rotate(-38, ${cx}, ${height + 8})`}
             >
               {bar.label}
