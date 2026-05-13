@@ -334,10 +334,19 @@ export async function getDashboardStats() {
     .order("name");
   if (teamError) throw new Error(`Failed to fetch team members: ${teamError.message}`);
 
+  // All posts — for created count
   const { data: contributionRows, error: contributionError } = await db
     .from("posts")
-    .select("author_id, status");
+    .select("author_id");
   if (contributionError) throw new Error(`Failed to fetch contribution rows: ${contributionError.message}`);
+
+  // "Published" = reached the Publishing stage (ready_to_publish or published)
+  // This matches the Pipeline grouping so the number is consistent across the dashboard
+  const { data: publishedRows, error: publishedError2 } = await db
+    .from("posts")
+    .select("author_id")
+    .in("status", ["ready_to_publish", "published"]);
+  if (publishedError2) throw new Error(`Failed to fetch published rows: ${publishedError2.message}`);
 
   const { data: activityRows, error: activityError } = await db
     .from("post_status_history")
@@ -360,7 +369,7 @@ export async function getDashboardStats() {
 
   const contributionMap = new Map<number, { name: string; posts_created: number; posts_published: number }>();
   for (const member of teamRows || []) {
-    contributionMap.set(member.id, {
+    contributionMap.set(Number(member.id), {
       name: member.name,
       posts_created: 0,
       posts_published: 0,
@@ -368,10 +377,13 @@ export async function getDashboardStats() {
   }
 
   for (const row of contributionRows || []) {
-    const item = contributionMap.get(row.author_id);
-    if (!item) continue;
-    item.posts_created += 1;
-    if (row.status === "published") item.posts_published += 1;
+    const item = contributionMap.get(Number(row.author_id));
+    if (item) item.posts_created += 1;
+  }
+
+  for (const row of publishedRows || []) {
+    const item = contributionMap.get(Number(row.author_id));
+    if (item) item.posts_published += 1;
   }
 
   const recentActivity = (activityRows || []) as PostStatusHistory[];

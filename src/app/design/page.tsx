@@ -711,20 +711,22 @@ export default function DesignerDashboard() {
               {/* Post sections */}
               <div className="px-5 py-5 space-y-6 max-w-2xl">
 
-                {/* LinkedIn Post */}
-                <section>
-                  <div className="flex items-center justify-between mb-2.5">
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">LinkedIn Post</p>
-                    <button className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors px-2 py-1 rounded-md hover:bg-muted/60"
-                      onClick={() => copyText(selected.content, "content")}>
-                      <IcoCopy copied={copiedField === "content"} />
-                      {copiedField === "content" ? "Copied!" : "Copy"}
-                    </button>
-                  </div>
-                  <div className="text-sm leading-relaxed whitespace-pre-wrap rounded-xl border border-border/60 bg-muted/20 px-4 py-3.5">
-                    {selected.content}
-                  </div>
-                </section>
+                {/* LinkedIn Post — only for non-carousel posts; carousels show caption inside the slides section */}
+                {selected.post_type !== "carousel" && (
+                  <section>
+                    <div className="flex items-center justify-between mb-2.5">
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">LinkedIn Post</p>
+                      <button className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors px-2 py-1 rounded-md hover:bg-muted/60"
+                        onClick={() => copyText(selected.content, "content")}>
+                        <IcoCopy copied={copiedField === "content"} />
+                        {copiedField === "content" ? "Copied!" : "Copy"}
+                      </button>
+                    </div>
+                    <div className="text-sm leading-relaxed whitespace-pre-wrap rounded-xl border border-border/60 bg-muted/20 px-4 py-3.5">
+                      {selected.content}
+                    </div>
+                  </section>
+                )}
 
                 {/* Hashtags */}
                 {parseHashtags(selected.hashtags).length > 0 && (
@@ -747,69 +749,90 @@ export default function DesignerDashboard() {
                   </section>
                 )}
 
-                {/* Carousel slides */}
+                {/* Carousel slides + caption */}
                 {selected.post_type === "carousel" && (() => {
                   const slides = parseSlides(selected.carousel_slides);
                   if (slides.length === 0) return null;
                   const carouselType = parseCarouselType(selected.carousel_slides);
+                  const caption = parseCaption(selected.carousel_slides) || selected.content || "";
                   return (
-                    <section>
-                      <div className="flex items-center justify-between mb-2.5">
-                        <div className="flex items-center gap-2">
-                          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                            Carousel Slides · {slides.length}
-                          </p>
-                          {(carouselType === "refined" || carouselType === "manual") && (
-                            <span className={cn(
-                              "text-[9px] font-bold px-1.5 py-0.5 rounded-full border",
-                              carouselType === "refined"
-                                ? "bg-amber-50 text-amber-700 border-amber-200"
-                                : "bg-violet-50 text-violet-700 border-violet-200"
-                            )}>
-                              {carouselType === "refined" ? "AI Refined" : "Manual"}
-                            </span>
-                          )}
-                        </div>
-                        <button className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors px-2 py-1 rounded-md hover:bg-muted/60"
-                          onClick={() => {
-                            const text = slides.map((s, i) => {
-                              const pos  = s.position ?? i + 1;
-                              const type = s.type ? ` · ${s.type}` : "";
-                              return `${String(pos).padStart(2, "0")}${type}\n${slideTitle(s)}\n${slideBody(s)}${s.note ? `\n↳ ${s.note}` : ""}`;
-                            }).join("\n\n");
-                            copyText(text, "slides");
-                          }}>
-                          <IcoCopy copied={copiedField === "slides"} />
-                          {copiedField === "slides" ? "Copied!" : "Copy All"}
-                        </button>
-                      </div>
-                      <div className="space-y-1.5">
-                        {slides.map((slide, i) => (
-                          <div key={i} className="flex gap-3 items-start p-3 rounded-xl bg-muted/30 border border-border/60 group hover:border-border transition-colors">
-                            <div className="shrink-0 w-7 pt-0.5 text-center">
-                              <span className="text-[12px] font-black text-[#009FF0] tabular-nums">
-                                {String(slide.position ?? i + 1).padStart(2, "0")}
+                    <section className="space-y-4">
+                      {/* Slides */}
+                      <div>
+                        <div className="flex items-center justify-between mb-2.5">
+                          <div className="flex items-center gap-2">
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                              Carousel Slides · {slides.length}
+                            </p>
+                            {(carouselType === "refined" || carouselType === "manual") && (
+                              <span className={cn(
+                                "text-[9px] font-bold px-1.5 py-0.5 rounded-full border",
+                                carouselType === "refined"
+                                  ? "bg-amber-50 text-amber-700 border-amber-200"
+                                  : "bg-violet-50 text-violet-700 border-violet-200"
+                              )}>
+                                {carouselType === "refined" ? "AI Refined" : "Manual"}
                               </span>
+                            )}
+                          </div>
+                          <button className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors px-2 py-1 rounded-md hover:bg-muted/60"
+                            onClick={() => {
+                              const text = slides.map((s, i) => {
+                                const pos  = s.position ?? i + 1;
+                                const type = s.type ? ` · ${s.type}` : "";
+                                return `${String(pos).padStart(2, "0")}${type}\n${slideTitle(s)}\n${slideBody(s)}${s.note ? `\n↳ ${s.note}` : ""}`;
+                              }).join("\n\n");
+                              copyText(text, "slides");
+                            }}>
+                            <IcoCopy copied={copiedField === "slides"} />
+                            {copiedField === "slides" ? "Copied!" : "Copy All"}
+                          </button>
+                        </div>
+                        <div className="space-y-1.5">
+                          {slides.map((slide, i) => (
+                            <div key={i} className="flex gap-3 items-start p-3 rounded-xl bg-muted/30 border border-border/60 group hover:border-border transition-colors">
+                              <div className="shrink-0 w-7 pt-0.5 text-center">
+                                <span className="text-[12px] font-black text-[#009FF0] tabular-nums">
+                                  {String(slide.position ?? i + 1).padStart(2, "0")}
+                                </span>
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                {slide.type && (
+                                  <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground mb-1">{slide.type}</p>
+                                )}
+                                <p className="text-sm font-semibold leading-snug">{slideTitle(slide)}</p>
+                                {slideBody(slide) && (
+                                  <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{slideBody(slide)}</p>
+                                )}
+                                {slide.note && (
+                                  <p className="text-[11px] italic text-muted-foreground/60 mt-1.5 pt-1.5 border-t border-border/50">{slide.note}</p>
+                                )}
+                              </div>
+                              <button className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-lg hover:bg-background"
+                                onClick={() => copyText(`${slideTitle(slide)}\n${slideBody(slide)}`, `slide-${i}`)}>
+                                <IcoCopy copied={copiedField === `slide-${i}`} />
+                              </button>
                             </div>
-                            <div className="flex-1 min-w-0">
-                              {slide.type && (
-                                <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground mb-1">{slide.type}</p>
-                              )}
-                              <p className="text-sm font-semibold leading-snug">{slideTitle(slide)}</p>
-                              {slideBody(slide) && (
-                                <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{slideBody(slide)}</p>
-                              )}
-                              {slide.note && (
-                                <p className="text-[11px] italic text-muted-foreground/60 mt-1.5 pt-1.5 border-t border-border/50">{slide.note}</p>
-                              )}
-                            </div>
-                            <button className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-lg hover:bg-background"
-                              onClick={() => copyText(`${slideTitle(slide)}\n${slideBody(slide)}`, `slide-${i}`)}>
-                              <IcoCopy copied={copiedField === `slide-${i}`} />
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* LinkedIn Caption — shown right below slides */}
+                      {caption && (
+                        <div>
+                          <div className="flex items-center justify-between mb-2.5">
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-blue-600 dark:text-blue-400">LinkedIn Caption</p>
+                            <button className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors px-2 py-1 rounded-md hover:bg-muted/60"
+                              onClick={() => copyText(caption, "caption")}>
+                              <IcoCopy copied={copiedField === "caption"} />
+                              {copiedField === "caption" ? "Copied!" : "Copy"}
                             </button>
                           </div>
-                        ))}
-                      </div>
+                          <div className="text-sm leading-relaxed whitespace-pre-wrap rounded-xl border border-blue-200 bg-blue-50/60 dark:bg-blue-950/20 dark:border-blue-800 px-4 py-3.5">
+                            {caption}
+                          </div>
+                        </div>
+                      )}
                     </section>
                   );
                 })()}

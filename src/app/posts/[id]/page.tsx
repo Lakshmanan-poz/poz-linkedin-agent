@@ -316,11 +316,11 @@ export default function PostDetailPage({ params }: { params: Promise<{ id: strin
                               ))}
                             </div>
 
-                            {/* Refined caption */}
-                            {parsed.caption && (
+                            {/* Caption */}
+                            {(parsed.caption || post.content) && (
                               <div className="space-y-1">
-                                <Label className="text-xs text-muted-foreground">Refined Caption</Label>
-                                <div className="rounded-lg border border-border bg-muted/30 px-4 py-3 text-sm whitespace-pre-wrap">{parsed.caption}</div>
+                                <Label className="text-xs text-muted-foreground">LinkedIn Caption</Label>
+                                <div className="rounded-lg border border-blue-100 bg-blue-50/60 dark:bg-blue-950/20 dark:border-blue-900 px-4 py-3 text-sm whitespace-pre-wrap">{parsed.caption || post.content}</div>
                               </div>
                             )}
 
@@ -338,17 +338,26 @@ export default function PostDetailPage({ params }: { params: Promise<{ id: strin
                         );
                       }
 
-                      // ── Legacy format ──
+                      // ── Legacy / AI format ──
                       const slides = parsed.slides || [];
+                      const legacyCaption = parsed.caption || post.content;
                       return (
-                        <div className="grid grid-cols-2 gap-3">
-                          {slides.map((slide: { headline?: string; bodyText?: string; title?: string; body?: string }, i: number) => (
-                            <Card key={i} className="p-3">
-                              <p className="text-xs text-muted-foreground">Slide {i + 1}</p>
-                              <p className="font-semibold text-sm">{slide.headline ?? slide.title}</p>
-                              <p className="text-xs text-muted-foreground mt-1">{slide.bodyText ?? slide.body}</p>
-                            </Card>
-                          ))}
+                        <div className="space-y-3">
+                          <div className="grid grid-cols-2 gap-3">
+                            {slides.map((slide: { headline?: string; bodyText?: string; title?: string; body?: string }, i: number) => (
+                              <Card key={i} className="p-3">
+                                <p className="text-xs text-muted-foreground">Slide {i + 1}</p>
+                                <p className="font-semibold text-sm">{slide.headline ?? slide.title}</p>
+                                <p className="text-xs text-muted-foreground mt-1">{slide.bodyText ?? slide.body}</p>
+                              </Card>
+                            ))}
+                          </div>
+                          {legacyCaption && (
+                            <div className="space-y-1">
+                              <Label className="text-xs text-muted-foreground">LinkedIn Caption</Label>
+                              <div className="rounded-lg border border-blue-100 bg-blue-50/60 dark:bg-blue-950/20 dark:border-blue-900 px-4 py-3 text-sm whitespace-pre-wrap">{legacyCaption}</div>
+                            </div>
+                          )}
                         </div>
                       );
                     } catch {

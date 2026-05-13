@@ -132,6 +132,75 @@ function ActivityBarChart({ bars, height = 120, color = "#00AAEC" }: { bars: { l
   );
 }
 
+/* ─── Calendar Heatmap ───────────────────────────────────────────────────────── */
+function CalendarHeatmap({ activity, month }: { activity: { created_at: string }[]; month: Date }) {
+  const year = month.getFullYear();
+  const mon  = month.getMonth();
+
+  const counts: Record<number, number> = {};
+  activity.forEach(a => {
+    const d = new Date(a.created_at);
+    if (d.getFullYear() === year && d.getMonth() === mon) {
+      counts[d.getDate()] = (counts[d.getDate()] || 0) + 1;
+    }
+  });
+
+  const firstDay    = new Date(year, mon, 1).getDay();
+  const daysInMonth = new Date(year, mon + 1, 0).getDate();
+  const today       = new Date();
+
+  const cellColor = (c: number) =>
+    c === 0 ? "#f1f5f9" : c === 1 ? "#bfdbfe" : c <= 3 ? "#60a5fa" : "#2563eb";
+
+  const cells: (number | null)[] = [
+    ...Array(firstDay).fill(null),
+    ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
+  ];
+  while (cells.length % 7 !== 0) cells.push(null);
+
+  const weeks: (number | null)[][] = [];
+  for (let i = 0; i < cells.length; i += 7) weeks.push(cells.slice(i, i + 7));
+
+  return (
+    <div className="w-full space-y-1">
+      {/* Day headers */}
+      <div className="grid grid-cols-7 gap-1 mb-1">
+        {["Su","Mo","Tu","We","Th","Fr","Sa"].map(d => (
+          <div key={d} className="text-center text-[9px] font-bold text-muted-foreground uppercase">{d}</div>
+        ))}
+      </div>
+      {/* Weeks */}
+      {weeks.map((week, wi) => (
+        <div key={wi} className="grid grid-cols-7 gap-1">
+          {week.map((day, di) => {
+            if (!day) return <div key={di} className="h-8" />;
+            const c = counts[day] || 0;
+            const isToday = today.getFullYear() === year && today.getMonth() === mon && today.getDate() === day;
+            return (
+              <div
+                key={di}
+                title={`${c} activit${c === 1 ? "y" : "ies"} — ${month.toLocaleString("en", { month: "short" })} ${day}`}
+                style={{ background: cellColor(c), color: c >= 2 ? "#fff" : c === 1 ? "#1d4ed8" : "#94a3b8" }}
+                className={`h-8 rounded-md flex items-center justify-center text-[10px] font-semibold select-none${isToday ? " ring-2 ring-offset-1 ring-[#00AAEC]" : ""}`}
+              >
+                {day}
+              </div>
+            );
+          })}
+        </div>
+      ))}
+      {/* Legend */}
+      <div className="flex items-center gap-1 pt-1 justify-end">
+        <span className="text-[9px] text-muted-foreground mr-0.5">Less</span>
+        {[0, 1, 2, 4].map(c => (
+          <div key={c} className="w-3 h-3 rounded-sm" style={{ background: cellColor(c) }} />
+        ))}
+        <span className="text-[9px] text-muted-foreground ml-0.5">More</span>
+      </div>
+    </div>
+  );
+}
+
 /* ─── SVG Donut Chart ────────────────────────────────────────────────────────── */
 function DonutChart({
   segments,
@@ -476,13 +545,18 @@ function AdminReviewQueue() {
 // ─── Admin / Super-admin Dashboard ───────────────────────────────────────────
 function AdminDashboard() {
   const [stats, setStats]           = useState<DashboardStats | null>(null);
-  const [activityDays, setActivityDays] = useState<7 | 14 | 30>(7);
+  const [calMonth, setCalMonth]     = useState<Date>(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1));
+  const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
 
   useEffect(() => {
-    fetch("/api/dashboard/stats")
-      .then((r) => r.json())
-      .then(setStats)
-      .catch(() => {});
+    const load = () =>
+      fetch("/api/dashboard/stats")
+        .then((r) => r.json())
+        .then((data) => { setStats(data); setLastUpdated(new Date()); })
+        .catch(() => {});
+    load();
+    const t = setInterval(load, 30_000);
+    return () => clearInterval(t);
   }, []);
 
   const pbs = (stats?.postsByStatus ?? {}) as Record<string, number>;
@@ -515,8 +589,16 @@ function AdminDashboard() {
       {/* Page header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-bold tracking-tight">Dashboard</h2>
-          <p className="text-[12px] text-muted-foreground mt-0.5">Content pipeline overview</p>
+          <div className="flex items-center gap-2">
+            <h2 className="text-xl font-bold tracking-tight">Dashboard</h2>
+            <span className="flex items-center gap-1 text-[10px] font-semibold text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              Live
+            </span>
+          </div>
+          <p className="text-[11px] text-muted-foreground mt-0.5">
+            Auto-refreshes every 30s · Last updated {lastUpdated.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+          </p>
         </div>
         <Link href="/review">
           <Button size="sm" className="h-8 text-xs">Review Queue</Button>
@@ -550,73 +632,68 @@ function AdminDashboard() {
       </div>
 
       {/* Pipeline + Activity — side by side */}
-      {(() => {
-        const today = new Date();
-        const days = Array.from({ length: activityDays }, (_, i) => {
-          const d = new Date(today);
-          d.setDate(d.getDate() - (activityDays - 1 - i));
-          return d;
-        });
-        const activityBars = days.map(d => ({
-          label: d.toLocaleDateString("en", { month: "short", day: "numeric" }),
-          value: stats.recentActivity.filter(a => new Date(a.created_at).toDateString() === d.toDateString()).length,
-        }));
-        return (
-          <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
-            {/* Pipeline — 2 cols */}
-            <Card className="lg:col-span-2">
-              <CardHeader className="pb-2 border-b">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-[13px] font-semibold">Pipeline</CardTitle>
-                  <span className="text-[11px] font-semibold text-muted-foreground bg-muted px-2 py-0.5 rounded-full">{fmt(stats.totalPosts ?? 0)} posts</span>
-                </div>
-              </CardHeader>
-              <CardContent className="py-3 px-4 space-y-3">
-                {GROUPED_STAGES.map((stage) => {
-                  const count = stage.statuses.reduce((sum, s) => sum + ((stats.postsByStatus as Record<string, number>)[s] || 0), 0);
-                  const pct   = Math.round((count / (stats.totalPosts || 1)) * 100);
-                  return (
-                    <div key={stage.label}>
-                      <div className="flex items-center justify-between mb-1.5">
-                        <div className="flex items-center gap-1.5">
-                          <span className="w-2 h-2 rounded-full" style={{ background: stage.color }} />
-                          <span className="text-[12px] font-medium">{stage.label}</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-[11px] text-muted-foreground">{pct}%</span>
-                          <span className="text-[13px] font-bold tabular-nums w-8 text-right" style={{ color: stage.color }}>{fmt(count)}</span>
-                        </div>
-                      </div>
-                      <div className="h-2 rounded-full bg-muted overflow-hidden">
-                        <div className="h-full rounded-full transition-all duration-700" style={{ width: `${pct}%`, background: stage.color }} />
-                      </div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* Pipeline */}
+        <Card>
+          <CardHeader className="pb-2 border-b">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-[13px] font-semibold">Pipeline</CardTitle>
+              <span className="text-[11px] font-semibold text-muted-foreground bg-muted px-2 py-0.5 rounded-full">{fmt(stats.totalPosts ?? 0)} posts</span>
+            </div>
+          </CardHeader>
+          <CardContent className="py-3 px-4 space-y-3">
+            {GROUPED_STAGES.map((stage) => {
+              const count = stage.statuses.reduce((sum, s) => sum + ((stats.postsByStatus as Record<string, number>)[s] || 0), 0);
+              const pct   = Math.round((count / (stats.totalPosts || 1)) * 100);
+              return (
+                <div key={stage.label}>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <div className="flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full" style={{ background: stage.color }} />
+                      <span className="text-[12px] font-medium">{stage.label}</span>
                     </div>
-                  );
-                })}
-              </CardContent>
-            </Card>
-
-            {/* Activity — 3 cols */}
-            <Card className="lg:col-span-3">
-              <CardHeader className="pb-2 border-b flex flex-row items-center justify-between">
-                <CardTitle className="text-[13px] font-semibold">Activity Trend</CardTitle>
-                <div className="flex items-center gap-0.5 p-0.5 rounded-lg bg-muted text-xs font-medium">
-                  {([7, 14, 30] as const).map(d => (
-                    <button key={d} onClick={() => setActivityDays(d)}
-                      className="px-2.5 py-1 rounded-md transition-all"
-                      style={activityDays === d ? { background: "#00AAEC", color: "#fff" } : { color: "var(--muted-foreground)" }}>
-                      {d}D
-                    </button>
-                  ))}
+                    <div className="flex items-center gap-2">
+                      <span className="text-[11px] text-muted-foreground">{pct}%</span>
+                      <span className="text-[13px] font-bold tabular-nums w-8 text-right" style={{ color: stage.color }}>{fmt(count)}</span>
+                    </div>
+                  </div>
+                  <div className="h-2 rounded-full bg-muted overflow-hidden">
+                    <div className="h-full rounded-full transition-all duration-700" style={{ width: `${pct}%`, background: stage.color }} />
+                  </div>
                 </div>
-              </CardHeader>
-              <CardContent className="pt-3">
-                <ActivityBarChart bars={activityBars} height={120} />
-              </CardContent>
-            </Card>
-          </div>
-        );
-      })()}
+              );
+            })}
+          </CardContent>
+        </Card>
+
+        {/* Activity Calendar */}
+        <Card>
+          <CardHeader className="pb-2 border-b flex flex-row items-center justify-between">
+            <CardTitle className="text-[13px] font-semibold">Activity Trend</CardTitle>
+            <div className="flex items-center gap-0.5">
+              <button
+                onClick={() => setCalMonth(m => new Date(m.getFullYear(), m.getMonth() - 1, 1))}
+                className="w-6 h-6 flex items-center justify-center rounded hover:bg-muted transition-colors text-muted-foreground"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+              </button>
+              <span className="text-[11px] font-semibold px-1 w-[76px] text-center tabular-nums">
+                {calMonth.toLocaleString("en", { month: "short", year: "numeric" })}
+              </span>
+              <button
+                onClick={() => setCalMonth(m => new Date(m.getFullYear(), m.getMonth() + 1, 1))}
+                disabled={calMonth.getFullYear() === new Date().getFullYear() && calMonth.getMonth() === new Date().getMonth()}
+                className="w-6 h-6 flex items-center justify-center rounded hover:bg-muted transition-colors text-muted-foreground disabled:opacity-30 disabled:cursor-not-allowed"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+              </button>
+            </div>
+          </CardHeader>
+          <CardContent className="pt-3">
+            <CalendarHeatmap activity={stats.recentActivity} month={calMonth} />
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Team Contributions — leaderboard */}
       <Card className="overflow-hidden">
@@ -624,7 +701,7 @@ function AdminDashboard() {
           <div className="flex items-center justify-between">
             <div>
               <CardTitle className="text-[15px] font-semibold">Team Contributions</CardTitle>
-              <p className="text-[11px] text-muted-foreground mt-0.5">Posts created by each member</p>
+              <p className="text-[11px] text-muted-foreground mt-0.5">Created & reached publishing stage</p>
             </div>
             <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-muted">
               <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-muted-foreground"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
@@ -727,6 +804,7 @@ function EmployeeDashboard() {
 
   useEffect(() => {
     if (!currentUser) return;
+    // Initial load — full fetch including notifications + confetti
     Promise.all([
       fetch("/api/posts").then((r) => r.json()),
       fetch("/api/notifications").then((r) => r.json()),
@@ -736,11 +814,9 @@ function EmployeeDashboard() {
         setPosts(Array.isArray(postsData) ? postsData : []);
         setNotifications(notifs);
         setLoading(false);
-        // Trigger celebration if there are unread published notifications
         if (notifs.some((n) => n.type === "published" && !n.is_read)) {
           setShowConfetti(true);
         }
-        // Mark all as read — clear badge in DB, locally, and notify sidebar
         if (notifs.some((n) => !n.is_read)) {
           fetch("/api/notifications/read-all", { method: "PATCH" })
             .then(() => window.dispatchEvent(new CustomEvent("notifications-read")))
@@ -749,6 +825,15 @@ function EmployeeDashboard() {
         }
       })
       .catch(() => setLoading(false));
+
+    // Poll every 30s — silently refresh post counts so KPI cards stay up to date
+    const t = setInterval(() => {
+      fetch("/api/posts")
+        .then((r) => r.json())
+        .then((data) => setPosts(Array.isArray(data) ? data : []))
+        .catch(() => {});
+    }, 30_000);
+    return () => clearInterval(t);
   }, [currentUser]);
 
   const statusCounts = posts.reduce<Record<string, number>>((acc, p) => {

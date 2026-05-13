@@ -155,7 +155,7 @@ export default function NewPostPage() {
       };
       if (Array.isArray(data.hashtags)) postBody.hashtags = JSON.stringify(data.hashtags);
       if (aiPostType === "carousel" && data.slides) {
-        postBody.carousel_slides = JSON.stringify({ slides: data.slides, closingSlide: data.closingSlide });
+        postBody.carousel_slides = JSON.stringify({ slides: data.slides, closingSlide: data.closingSlide, caption: content });
       }
 
       const saveRes = await fetch("/api/posts", {
@@ -253,6 +253,7 @@ export default function NewPostPage() {
           body.carousel_slides = JSON.stringify({
             slides: (generatedContent as Record<string, unknown>).slides,
             closingSlide: (generatedContent as Record<string, unknown>).closingSlide,
+            caption: editedContent,
           });
         }
       }
