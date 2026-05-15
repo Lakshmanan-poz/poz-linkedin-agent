@@ -1,7 +1,7 @@
 # POZ Agent — Content Generation Workflow
 
-**Last updated:** 2026-05-04
-**Status:** Verified against live code. RAG file upload added. PDF extraction via pdfjs-dist. Login page redesigned. 18 skills total.
+**Last updated:** 2026-05-15
+**Status:** Verified against live code. RAG file upload. PDF extraction via pdfjs-dist. Login page redesigned. 18 skills total. Trending UI workflow, carousel-html (Anthropic), timeout fixes, directAction bypass, content-refiner paste guard all added.
 
 ---
 
@@ -17,8 +17,8 @@ USER GIVES TOPIC  ──OR──  USER UPLOADS FILE(S)
       │               → ask questions → /api/agents/rag → GPT-4o answers
       │
       ▼
-STEP 1 — Fetch X/Twitter Trends (Grok, last 7 days)
-      │   12+ credible sources, ranked by authority + velocity
+STEP 1 — Fetch X/Twitter Trends (Grok, last 2 days)
+      │   Up to 20 sources, ranked by authority + velocity
       │
       ▼
 STEP 2 — User Selects Intent
@@ -56,12 +56,37 @@ USER INPUT (Prompt / Topic / Question / File Upload)
      │  → return (no intent detection, no skills)          │
      └──────────────────────────────────────────────────────┘
                 ↓ (no docs attached)
-     Intent Detection Layer  —  POST /api/agents/chat  (temperature: 0.3)
-        ├── General Chat          → reply (chat bubble, no generation)
-        ├── Trend Request         → POST /api/agents/trending (Grok X search)
-        ├── Topic Analysis        → daily-content → daily-post skill
-        ├── Content Creation      → weekly-calendar → content-calendar skill
-        └── Content Refiner       → content-refiner → 6-step SKILL.md audit
+     6-Layer Routing (checked in strict order — first match wins)
+        │
+        ├── LAYER 1 — directAction bypass
+        │     topic card click → handleSend(topic, "carousel")
+        │     → clears any pendingQ → immediate 8-slide carousel, no router called
+        │
+        ├── LAYER 2 — pendingQ state machine (trend workflow)
+        │     trend-topic-pick  → user picked a topic number/text
+        │     trend-more        → user wants more topics (fetches fresh batch)
+        │     trend-format      → user chose Single Page or Carousel
+        │     trend-slides      → user chose slide count → generate
+        │     paste-content     → user pasted content after being asked
+        │     slide-count       → legacy clarification
+        │
+        ├── LAYER 3 — Trend regex  (local, no API call)
+        │     /trend|trending|today.*topic|.../ → GET /api/agents/trending
+        │
+        ├── LAYER 4 — detectIntent()  (local function, no API call)
+        │     content-refiner  → checks for 80+ char pasted content first
+        │                         if none → asks user to paste → pendingQ
+        │     weekly-calendar  → generate directly
+        │     topic-analysis   → calls chat router with research prefix
+        │     daily-content    → generate directly (carousel/single/default)
+        │
+        ├── LAYER 5 — POST /api/agents/chat  (GPT-4o, temperature: 0.3, max_tokens: 1500)
+        │     Only reached when layers 1-4 all miss
+        │     Returns: daily-content / weekly-calendar / content-refiner /
+        │              trending / topic-analysis / reply
+        │
+        └── LAYER 6 — reply fallback
+              routed.text shown as chat bubble, or FALLBACK_REPLY constant
                 ↓
         🧠 Hidden Thinking Layer  (INTERNAL — never shown in UI)
         ├── Understand intent & classify action
@@ -220,7 +245,8 @@ File: `src/app/agent-catalog/page.tsx` → `generateFromChat()`
 | `daily-content` | `POST /api/agents/generate` `{ skillId: "daily-post", inputs }` |
 | `weekly-calendar` | `POST /api/agents/generate` `{ skillId: "content-calendar", inputs }` |
 | `content-refiner` | `POST /api/agents/generate` `{ skillId: "content-refiner", inputs }` |
-| `trending` | `POST /api/agents/trending` → Grok X search (standalone) |
+| `trending` | `GET /api/agents/trending` → Grok X search (standalone) |
+| `topic-analysis` | Research text returned in `routed.text` from chat router (no generation) |
 | `reply` | Rendered as chat bubble — no generation call |
 
 ---
@@ -243,7 +269,7 @@ File: `src/lib/agents/generate.ts`
 CHAT_TREND_SKILLS = { "content-calendar", "daily-post" }
 
 Topic → Grok X search (XAI_API_KEY required)
-  · Scans last 7 days of X/Twitter posts
+  · Scans last 2 days of X/Twitter posts
   · Minimum 12 credible sources
   · Ranked by: source authority, cross-account convergence,
     velocity, enterprise relevance, content gap
@@ -388,6 +414,37 @@ STEP 6 — Final re-validation under all 3 hats
 | 7–8.4 | Good foundation. 3–4 rewrites needed. | `false` |
 | 5–6.9 | Directionally right, execution fails. | `false` |
 | < 5 | Structural issues. Rebuild from formula. | `false` |
+
+---
+
+### Step 6B — Carousel HTML Generation (Visual Slides)
+File: `src/app/api/agents/carousel-html/route.ts`
+
+Triggered from the Agent Catalog UI when a carousel result has slides and the user views the carousel preview.
+
+```
+POST /api/agents/carousel-html
+Body: { slides: Slide[], topic: string }
+
+→ For each slide: Anthropic claude-sonnet-4-6  max_tokens: 8096
+→ All slides generated in parallel (Promise.all)
+→ Archetype routing per slide position:
+     position 1 or type "hook/cover" → COVER  (ink canvas #050517)
+     type "list/reframe"             → LIST   (white canvas)
+     type "stat/depth/number"        → STAT   (white canvas)
+     type "quote/principle"          → QUOTE  (ink canvas)
+     last slide or type "cta"        → CTA    (blue canvas #009FF0)
+→ Returns { slides: [{ ...slide, slideHtml: string }] }
+
+maxDuration: 120s  (Anthropic 8096 tokens × up to 8 slides)
+ANTHROPIC_API_KEY required
+```
+
+POZ Design rules enforced:
+- Fonts: Bebas Neue (display, ALL CAPS) + Inter (body)
+- Canvases: Ink #050517 / White #FFFFFF / Blue #009FF0
+- No gradients, no blur, no colored shadows, no position:absolute on children
+- Eyebrow chips: white-space:nowrap, max 3 words
 
 ---
 
@@ -545,6 +602,22 @@ Signal:  Immediate tension, no warm-up
 
 ---
 
+## Changes — Session 3 (2026-05-15)
+
+| # | Area | Change |
+|---|---|---|
+| 1 | Avatar | Topic cards now load real X/Twitter profile images via `unavatar.io/x/{handle}`; letter circle shown as CSS fallback on error |
+| 2 | Topic card click | `handleSend(topic, "carousel")` directAction bypass added — fires before all pendingQ checks, clears any active pendingQ, generates 8-slide carousel immediately |
+| 3 | Operator precedence | Fixed `routed.action === "daily-content" \|\| routed.action === "topic-analysis" && routed.topic` — added parentheses so topic-analysis routes correctly |
+| 4 | Content-refiner | Hard-matched path now checks for 80+ char pasted content before generating; if none → asks user to paste and sets pendingQ |
+| 5 | Chat route | `maxDuration = 30` added; OpenAI call wrapped with `AbortSignal.timeout(25_000)`; `max_tokens` raised 512 → 1500 for full topic-analysis research |
+| 6 | carousel-html route | `maxDuration = 120` added (was defaulting to 30s — caused guaranteed timeout on every carousel) |
+| 7 | rag route | `maxDuration = 60` added |
+| 8 | trending route | `maxDuration = 30` added; `max_tokens: 2000` added to xAI request body |
+| 9 | Frontend fetches | `AbortSignal.timeout(25_000)` on `askChatRouter`; `AbortSignal.timeout(55_000)` on all three `generateFromChat` calls |
+
+---
+
 ## Changes — Session 2 (2026-05-04)
 
 | # | Area | Change |
@@ -626,6 +699,18 @@ Signal:  Immediate tension, no warm-up
 
 ---
 
+## API Route Timeouts
+
+| Route | maxDuration | External call | Client fetch timeout |
+|---|---|---|---|
+| `POST /api/agents/chat` | 30s | OpenAI GPT-4o, AbortSignal 25s | `askChatRouter`: AbortSignal 25s |
+| `GET /api/agents/trending` | 30s | xAI Grok, AbortController 10s | `fetchAndShowTrends`: AbortController 13s |
+| `POST /api/agents/generate` | 60s | OpenAI via generateSkillOutput | `generateFromChat`: AbortSignal 55s |
+| `POST /api/agents/rag` | 60s | OpenAI GPT-4o | none |
+| `POST /api/agents/carousel-html` | 120s | Anthropic claude-sonnet-4-6 | none |
+
+---
+
 ## Key Files
 
 | File | Role |
@@ -656,8 +741,9 @@ Signal:  Immediate tension, no warm-up
 | Variable | Used by | Purpose |
 |---|---|---|
 | `OPENAI_API_KEY` | agents/generate.ts, ai/generate.ts, agents/rag/route.ts | Content generation + RAG answers (GPT-4o) |
-| `XAI_API_KEY` | agents/generate.ts | Grok X trend search + Grok live_search web research |
-| `XAI_MODEL` | agents/generate.ts | Grok model override (default: `grok-3-fast`) |
+| `ANTHROPIC_API_KEY` | agents/carousel-html/route.ts | Visual HTML slide generation (claude-sonnet-4-6) |
+| `XAI_API_KEY` | agents/generate.ts, agents/trending/route.ts | Grok X trend search + Grok live_search web research |
+| `XAI_MODEL` | agents/generate.ts, agents/trending/route.ts | Grok model override (trending default: `grok-3-latest`, generate default: `grok-4-fast-reasoning`) |
 | `NEXT_PUBLIC_SUPABASE_URL` | src/lib/db/index.ts | Supabase project URL |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | src/lib/db/index.ts | Supabase anon key (client) |
 | `SUPABASE_SERVICE_ROLE_KEY` | src/lib/db/index.ts | Supabase service role key (admin — bypasses RLS) |

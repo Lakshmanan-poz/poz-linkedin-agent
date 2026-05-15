@@ -4,6 +4,8 @@ import { verifyToken, COOKIE_NAME } from "@/lib/auth";
 import { getSetting } from "@/lib/db/settings";
 import { getDocumentsByIds, retrieveRelevantChunks } from "@/lib/db/documents";
 
+export const maxDuration = 60;
+
 export async function POST(request: NextRequest) {
   const token = request.cookies.get(COOKIE_NAME)?.value;
   const payload = token ? await verifyToken(token) : null;

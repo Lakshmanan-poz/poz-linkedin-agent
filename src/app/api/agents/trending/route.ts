@@ -28,6 +28,8 @@ function getDayConfig(dayParam?: string | null) {
   return DAY_TYPES[idx >= 1 && idx <= 5 ? idx - 1 : 0];
 }
 
+export const maxDuration = 30;
+
 export async function GET(request: NextRequest) {
   const token = request.cookies.get(COOKIE_NAME)?.value;
   if (!token || !(await verifyToken(token))) {
@@ -79,6 +81,7 @@ Return ONLY valid JSON — no markdown, no explanation:
         model,
         messages: [{ role: "user", content: prompt }],
         temperature: 0.3,
+        max_tokens: 2000,
       }),
       signal: controller.signal,
     });

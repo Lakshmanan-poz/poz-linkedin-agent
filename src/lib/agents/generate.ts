@@ -1523,7 +1523,9 @@ Return JSON only:
   type WebSource = { title: string; url?: string; domain?: string; snippet?: string };
   let webSources: WebSource[] = [];
 
-  if (WEB_RESEARCH_SKILLS.has(params.skillId)) {
+  // Single-page posts are short opinion pieces — they don't need 20+ web sources.
+  // Skip web research to keep generation well within the 60s server time limit.
+  if (WEB_RESEARCH_SKILLS.has(params.skillId) && !params.inputs.singlePage) {
     const topic = String((params.inputs.topic as string | undefined) ?? "").trim();
     if (topic) {
       // Strip LinkedIn post-creation instruction words so the search focuses on the

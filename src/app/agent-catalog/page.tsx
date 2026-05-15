@@ -2004,7 +2004,7 @@ function detectIntent(text: string): EmbedType | null {
       /(?:analyse|analyze|research|deep.?dive into|give me insights on)\s+(?:the\s+)?.{3,}/i.test(text)) {
     return "topic-analysis";
   }
-  if (/(?:generate|create|write|draft|build).*(?:post|content|carousel|caption)|today.*(?:post|content)|linkedin.*post|(?:post|content).*(?:about|for|on|today)|carousel/i.test(text)) {
+  if (/(?:generate|create|write|draft|build|make|give\s+me).*(?:post|content|carousel|caption)|single[\s-]?(?:page\s+)?post|today.*(?:post|content)|linkedin.*post|(?:post|content).*(?:about|for|on|today)|carousel/i.test(text)) {
     return "daily-content";
   }
   return null;
@@ -2048,7 +2048,7 @@ async function generateFromChat(
     const inputs: Record<string, unknown> = { day, contentType: opts?.contentType ?? typeMap[day], topic: cleanedTopic };
     if (opts?.slideCount) inputs.slideCount = opts.slideCount;
     if (opts?.singlePage) inputs.singlePage = true;
-    const res = await fetch("/api/agents/generate", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ skillId:"daily-post", inputs }) });
+    const res = await fetch("/api/agents/generate", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ skillId:"daily-post", inputs }), signal: AbortSignal.timeout(90_000) });
     if (res.status === 401) { window.location.href = "/login"; throw new Error("Session expired — please log in again"); }
     if (!res.ok) { let m = "Generation failed"; try { m = (await res.json()).error ?? m; } catch {} throw new Error(m); }
     return res.json();
@@ -2056,7 +2056,7 @@ async function generateFromChat(
   if (intent === "weekly-calendar") {
     const d = new Date(); const dn = d.getDay(); d.setDate(d.getDate() + (dn === 0 ? 1 : 8 - dn));
     const weekOf = d.toISOString().split("T")[0];
-    const res = await fetch("/api/agents/generate", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ skillId:"content-calendar", inputs:{ weekOf, company:"Point One Zero (POZ)", industry:"AI Strategy & Design", audience:"CIOs, CTOs, CEOs, founders, B2B tech decision-makers", keyTopics: text } }) });
+    const res = await fetch("/api/agents/generate", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ skillId:"content-calendar", inputs:{ weekOf, company:"Point One Zero (POZ)", industry:"AI Strategy & Design", audience:"CIOs, CTOs, CEOs, founders, B2B tech decision-makers", keyTopics: text } }), signal: AbortSignal.timeout(90_000) });
     if (res.status === 401) { window.location.href = "/login"; throw new Error("Session expired — please log in again"); }
     if (!res.ok) { let m = "Generation failed"; try { m = (await res.json()).error ?? m; } catch {} throw new Error(m); }
     return res.json();
@@ -2064,7 +2064,7 @@ async function generateFromChat(
   if (intent === "content-refiner") {
     const match = text.match(/(?:audit|refine|rate|score|check|review)[^:]*:?\s*([\s\S]{80,})/i);
     const content = match?.[1]?.trim() ?? text;
-    const res = await fetch("/api/agents/generate", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ skillId:"content-refiner", inputs:{ content } }) });
+    const res = await fetch("/api/agents/generate", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ skillId:"content-refiner", inputs:{ content } }), signal: AbortSignal.timeout(90_000) });
     if (res.status === 401) { window.location.href = "/login"; throw new Error("Session expired — please log in again"); }
     if (!res.ok) { let m = "Generation failed"; try { m = (await res.json()).error ?? m; } catch {} throw new Error(m); }
     return res.json();
@@ -2104,6 +2104,7 @@ async function askChatRouter(
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ message, history }),
+    signal: AbortSignal.timeout(25_000),
   });
   if (!res.ok) throw new Error("Chat router failed");
   return res.json();
@@ -2315,7 +2316,7 @@ export default function AgentCatalogPage() {
 
 
   /* send a chat message */
-  async function handleSend(overrideText?: string) {
+  async function handleSend(overrideText?: string, directAction?: "carousel") {
     if (messages.some((m) => m.generating)) return;
     const raw  = (overrideText ?? inputText).trim();
     if (!raw) return;
@@ -2372,6 +2373,30 @@ export default function AgentCatalogPage() {
       return;
     }
 
+    /* ── Direct action from topic card click — runs before any pendingQ ── */
+    if (directAction === "carousel") {
+      setPendingQ(null);
+      const agentId = uuid();
+      const userMsg: ChatMsg = { id: uuid(), role: "user", text };
+      const agentMsg: ChatMsg = { id: agentId, role: "agent", generating: true, text: "" };
+      setMessages((prev) => [...prev, userMsg, agentMsg]);
+      try {
+        const data = await generateFromChat("daily-content", text, { slideCount: 8 });
+        setMessages((prev) => prev.map((m) =>
+          m.id === agentId
+            ? { ...m, generating: false, text: "Here you go:", resultType: "daily-content", resultData: data }
+            : m
+        ));
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : "Generation failed";
+        setMessages((prev) => prev.map((m) =>
+          m.id === agentId ? { ...m, generating: false, text: `Sorry, something went wrong — ${msg}` } : m
+        ));
+        toast.error(msg);
+      }
+      return;
+    }
+
     /* ── Trend workflow steps ───────────────────────────────────────── */
     if (pendingQ && pendingQ.type === "trend-topic-pick") {
       const pq = pendingQ;
@@ -2409,6 +2434,36 @@ export default function AgentCatalogPage() {
         return;
       }
 
+      // Smart format detection — skip questions if format already mentioned
+      const wantsCarousel = /carousel|\bslides?\b|multi[\s-]?slide/i.test(text);
+      const wantsSingle   = /single[\s-]?(?:page|post)|one[\s-]?page|text[\s-]?post/i.test(text);
+      const slideInPick   = extractSlideCount(text);
+
+      if (wantsSingle) {
+        await runTrendGenerate(picked.topic, picked.day, picked.type, "single", 0);
+        return;
+      }
+
+      if (wantsCarousel && slideInPick) {
+        await runTrendGenerate(picked.topic, picked.day, picked.type, "carousel", slideInPick);
+        return;
+      }
+
+      if (wantsCarousel) {
+        // User said "carousel" but no slide count — skip format question, ask slides only
+        setMessages((prev) => [...prev, {
+          id: uuid(), role: "agent",
+          text: `How many slides for **"${picked.topic}"**?\n\n(Recommended: 6–8)`,
+          quickReplies: [
+            { label: "5 slides", value: "5" }, { label: "6 slides", value: "6" },
+            { label: "7 slides", value: "7" }, { label: "8 slides", value: "8" },
+          ],
+        }]);
+        setPendingQ({ type: "trend-slides", topic: picked.topic, day: picked.day, contentType: picked.type });
+        return;
+      }
+
+      // Default — ask format (single or carousel)
       setMessages((prev) => [...prev, {
         id: uuid(), role: "agent",
         text: `Great choice!\n\n**${picked.day} · ${picked.type}**\n"${picked.topic}"\n\nHow would you like this content formatted?`,
@@ -2442,6 +2497,12 @@ export default function AgentCatalogPage() {
         return;
       }
       if (/carousel|slide|multi/i.test(lower)) {
+        const slideInFormat = extractSlideCount(text);
+        if (slideInFormat) {
+          // Slide count already in message — generate directly, no extra question
+          await runTrendGenerate(pq.topic, pq.day, pq.contentType, "carousel", slideInFormat);
+          return;
+        }
         setMessages((prev) => [...prev, {
           id: uuid(), role: "agent",
           text: "How many slides would you like? (Recommended: 6–8)",
@@ -2549,7 +2610,7 @@ export default function AgentCatalogPage() {
     if (intent === "daily-content") {
       const carouselRequest = isCarouselRequest(text);
       const slideCountInMsg = extractSlideCount(text);
-      const isSinglePage = !carouselRequest && /single[\s-]?(?:page|post)|text[\s-]?post|no\s+carousel|without\s+carousel/i.test(text);
+      const isSinglePage = !carouselRequest && /single[\s-]?(?:page|post)|text[\s-]?post|no\s+carousel|without\s+carousel|\bpost\b/i.test(text);
 
       const agentId = uuid();
       const userMsg: ChatMsg = { id: uuid(), role: "user", text };
@@ -2558,7 +2619,7 @@ export default function AgentCatalogPage() {
       const agentMsg: ChatMsg = { id: agentId, role: "agent", generating: true, text: "" };
       setMessages((prev) => [...prev, userMsg, agentMsg]);
       try {
-        const opts = isSinglePage ? { singlePage: true } : carouselRequest ? { slideCount: slides } : undefined;
+        const opts = isSinglePage ? { singlePage: true } : carouselRequest ? { slideCount: slides } : { slideCount: slides };
         const data = await generateFromChat(intent, text, opts);
         setMessages((prev) => prev.map((m) =>
           m.id === agentId
@@ -2607,7 +2668,19 @@ export default function AgentCatalogPage() {
 
     /* ── Hard-matched: calendar or content-refiner → generate directly ── */
     if (intent) {
-      // Hidden Thinking Layer — no status text, only loading dots
+      // Content-refiner: require pasted content (80+ chars after keyword)
+      if (intent === "content-refiner") {
+        const hasContent = /(?:audit|refine|rate|score|check|review)[^:]*:?\s*([\s\S]{80,})/i.test(text);
+        if (!hasContent) {
+          setMessages((prev) => [...prev, userMsg, {
+            id: agentId, role: "agent",
+            text: "Paste your post or carousel slides below — I'll audit and rewrite it to 10/10 standard.",
+          }]);
+          setPendingQ({ type: "paste-content", intent: "content-refiner", originalText: text });
+          return;
+        }
+      }
+
       const agentMsg: ChatMsg = { id: agentId, role: "agent", generating: true, text: "" };
       setMessages((prev) => [...prev, userMsg, agentMsg]);
       try {
@@ -2645,10 +2718,9 @@ export default function AgentCatalogPage() {
         return;
       }
 
-      if (routed.action === "daily-content" || routed.action === "topic-analysis" && routed.topic) {
+      if (routed.action === "daily-content" || (routed.action === "topic-analysis" && routed.topic)) {
         const topic = routed.topic || text;
         const slides = routed.slideCount ?? 8;
-        const isSingle = !routed.isCarousel;
         const opts = routed.isCarousel ? { slideCount: slides } : { singlePage: true };
         const data = await generateFromChat("daily-content", topic, opts);
         setMessages((prev) => prev.map((m) =>
@@ -2798,6 +2870,11 @@ export default function AgentCatalogPage() {
           return;
         }
         if (/carousel|slide|multi/i.test(lower)) {
+          const slideInFormat = extractSlideCount(raw);
+          if (slideInFormat) {
+            await runTrendGenerate(topic, day, contentType, "carousel", slideInFormat);
+            return;
+          }
           setMessages((prev) => [...prev, {
             id: uuid(), role: "agent", generating: false,
             text: "How many slides would you like? (Recommended: 6–8)",
@@ -2876,6 +2953,33 @@ export default function AgentCatalogPage() {
 
       if (picked) {
         setMessages([...base, { id: uuid(), role: "user", text: raw }]);
+
+        // Smart format detection — same logic as handleSend trend-topic-pick
+        const wantsCarousel = /carousel|\bslides?\b|multi[\s-]?slide/i.test(raw);
+        const wantsSingle   = /single[\s-]?(?:page|post)|one[\s-]?page|text[\s-]?post/i.test(raw);
+        const slideInPick   = extractSlideCount(raw);
+
+        if (wantsSingle) {
+          await runTrendGenerate(picked.topic, picked.day, picked.type, "single", 0);
+          return;
+        }
+        if (wantsCarousel && slideInPick) {
+          await runTrendGenerate(picked.topic, picked.day, picked.type, "carousel", slideInPick);
+          return;
+        }
+        if (wantsCarousel) {
+          setMessages((prev) => [...prev, {
+            id: uuid(), role: "agent" as const, generating: false,
+            text: `How many slides for **"${picked.topic}"**?\n\n(Recommended: 6–8)`,
+            quickReplies: [
+              { label: "5 slides", value: "5" }, { label: "6 slides", value: "6" },
+              { label: "7 slides", value: "7" }, { label: "8 slides", value: "8" },
+            ],
+          }]);
+          setPendingQ({ type: "trend-slides", topic: picked.topic, day: picked.day, contentType: picked.type });
+          return;
+        }
+
         setMessages((prev) => [...prev, {
           id: uuid(), role: "agent" as const, generating: false,
           text: `Great choice!\n\n**${picked.day} · ${picked.type}**\n"${picked.topic}"\n\nHow would you like this content formatted?`,
@@ -3405,15 +3509,24 @@ export default function AgentCatalogPage() {
                               <div
                                 role="button"
                                 tabIndex={0}
-                                onClick={() => handleSend(t.topic)}
-                                onKeyDown={(e) => e.key === "Enter" && handleSend(t.topic)}
+                                onClick={() => handleSend(t.topic, "carousel")}
+                                onKeyDown={(e) => e.key === "Enter" && handleSend(t.topic, "carousel")}
                                 className={cn(
                                   "w-full text-left flex items-start gap-3 px-4 py-3 rounded-xl border bg-card hover:bg-accent/50 transition-all cursor-pointer",
                                   dc.border
                                 )}
                               >
-                                <div className={cn("shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-xs font-black text-white mt-0.5", avatarBg)}>
-                                  {initial}
+                                <div className={cn("relative shrink-0 w-8 h-8 rounded-full overflow-hidden flex items-center justify-center text-xs font-black text-white mt-0.5", avatarBg)}>
+                                  <span className="select-none">{initial}</span>
+                                  {t.handle && (
+                                    // eslint-disable-next-line @next/next/no-img-element
+                                    <img
+                                      src={`https://unavatar.io/x/${t.handle.replace("@", "")}`}
+                                      alt=""
+                                      className="absolute inset-0 w-full h-full object-cover"
+                                      onError={(e) => { e.currentTarget.style.display = "none"; }}
+                                    />
+                                  )}
                                 </div>
                                 <div className="flex-1 min-w-0 pr-6">
                                   {t.handle ? (

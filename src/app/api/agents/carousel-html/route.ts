@@ -323,6 +323,8 @@ CRITICAL CHECKLIST — verify before outputting:
 Return ONLY the <div>. Nothing else.`;
 }
 
+export const maxDuration = 120;
+
 /* ─── Route handler ─────────────────────────────────────────────────────────── */
 export async function POST(req: NextRequest) {
   try {

@@ -3,6 +3,8 @@ import OpenAI from "openai";
 import { verifyToken, COOKIE_NAME } from "@/lib/auth";
 import { getSetting } from "@/lib/db/settings";
 
+export const maxDuration = 30;
+
 async function requireAuth(request: NextRequest) {
   const token = request.cookies.get(COOKIE_NAME)?.value;
   if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -82,8 +84,8 @@ export async function POST(request: NextRequest) {
       messages,
       response_format: { type: "json_object" },
       temperature: 0.3,
-      max_tokens: 512,
-    });
+      max_tokens: 1500,
+    }, { signal: AbortSignal.timeout(25_000) });
 
     const raw = resp.choices[0].message.content || "{}";
     const parsed = JSON.parse(raw);
