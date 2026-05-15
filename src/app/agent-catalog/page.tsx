@@ -2406,19 +2406,9 @@ export default function AgentCatalogPage() {
       setPendingQ(null);
 
       const lower = text.toLowerCase();
-      if (/\bmore\b/.test(lower)) {
-        setMessages((prev) => [...prev, {
-          id: uuid(), role: "agent",
-          text: "How many more topics would you like to see?",
-          quickReplies: [
-            { label: "3", value: "3" }, { label: "5", value: "5" }, { label: "8", value: "8" },
-          ],
-        }]);
-        setPendingQ({ type: "trend-more", seenTopics: pq.seenTopics });
-        return;
-      }
 
-      // Match by exact topic text first (card clicks send full topic), then by number, then by partial
+      // Match topic FIRST — before "more" check, so sentences containing the
+      // word "more" (e.g. "10x more in 5 years") don't trigger "show more topics".
       const byExact  = pq.trends.find((t) => t.topic === text);
       const numMatch = !byExact ? text.match(/\b(\d+)\b/) : null;
       const idx      = numMatch ? parseInt(numMatch[1], 10) - 1 : -1;
@@ -2427,7 +2417,22 @@ export default function AgentCatalogPage() {
         ?? pq.trends.find((t) => t.topic.toLowerCase().includes(text.toLowerCase().slice(0, 30)))
         ?? null;
 
+      // Only treat as "show more topics" when NO topic was matched AND the
+      // message is a short, explicit "more" request (not a sentence with "more").
       if (!picked) {
+        const isMoreRequest = /^more$|^(?:show\s+)?more\s+topics?|^\d+\s+more$/i.test(text.trim())
+                           || (/\bmore\b/.test(lower) && text.trim().length <= 15);
+        if (isMoreRequest) {
+          setMessages((prev) => [...prev, {
+            id: uuid(), role: "agent",
+            text: "How many more topics would you like to see?",
+            quickReplies: [
+              { label: "3", value: "3" }, { label: "5", value: "5" }, { label: "8", value: "8" },
+            ],
+          }]);
+          setPendingQ({ type: "trend-more", seenTopics: pq.seenTopics });
+          return;
+        }
         setMessages((prev) => [...prev, {
           id: uuid(), role: "agent",
           text: "Please click one of the topic cards above, or type the topic number (e.g. **2**), or say **\"more\"** to see additional topics.",
@@ -3019,19 +3024,8 @@ export default function AgentCatalogPage() {
         .flatMap((m) => (m.trendList ?? []).map((t) => t.topic));
       const lower = raw.toLowerCase();
 
-      if (/\bmore\b/.test(lower)) {
-        setMessages([...base, { id: uuid(), role: "user", text: raw }]);
-        setMessages((prev) => [...prev, {
-          id: uuid(), role: "agent" as const, generating: false,
-          text: "How many more topics would you like to see?",
-          quickReplies: [
-            { label: "3", value: "3" }, { label: "5", value: "5" }, { label: "8", value: "8" },
-          ],
-        }]);
-        setPendingQ({ type: "trend-more", seenTopics });
-        return;
-      }
-
+      // Match topic FIRST so sentences containing "more" (e.g. "10x more in 5 years")
+      // don't trigger "show more topics".
       const byExact  = trendList.find((t) => t.topic === raw);
       const numMatch = !byExact ? raw.match(/\b(\d+)\b/) : null;
       const idx      = numMatch ? parseInt(numMatch[1], 10) - 1 : -1;
@@ -3078,6 +3072,21 @@ export default function AgentCatalogPage() {
           ],
         }]);
         setPendingQ({ type: "trend-format", topic: picked.topic, day: picked.day, contentType: picked.type });
+        return;
+      }
+      // No topic match — check if it's a strict "more" request
+      const isMoreRequest = /^more$|^(?:show\s+)?more\s+topics?|^\d+\s+more$/i.test(raw.trim())
+                         || (/\bmore\b/.test(lower) && raw.trim().length <= 15);
+      if (isMoreRequest) {
+        setMessages([...base, { id: uuid(), role: "user", text: raw }]);
+        setMessages((prev) => [...prev, {
+          id: uuid(), role: "agent" as const, generating: false,
+          text: "How many more topics would you like to see?",
+          quickReplies: [
+            { label: "3", value: "3" }, { label: "5", value: "5" }, { label: "8", value: "8" },
+          ],
+        }]);
+        setPendingQ({ type: "trend-more", seenTopics });
         return;
       }
       // No match found — fall through to normal flow so user can type a new intent
