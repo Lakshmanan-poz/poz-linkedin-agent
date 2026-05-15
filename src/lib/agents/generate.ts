@@ -1637,27 +1637,8 @@ HARD REQUIREMENT: minimum 20 sources in the sources array. Search multiple angle
         }
       }
 
-      // ── Fallback: OpenAI Responses API with web search ────────────────────
-      if (!researchDone) {
-        try {
-          const apiKeyForSearch = process.env.OPENAI_API_KEY || storedApiKey;
-          if (apiKeyForSearch) {
-            const openaiSearch = new OpenAI({ apiKey: apiKeyForSearch, timeout: 15_000 });
-            const searchResp = await openaiSearch.responses.create({
-              model: defaultModelSetting || "gpt-4o",
-              instructions: "You are a research analyst. Search the web thoroughly and return ONLY valid JSON — no markdown, no explanation.",
-              input: webSearchPrompt,
-              tools: [{ type: "web_search" as const }],
-              temperature: 0.2,
-            });
-            const webText = searchResp.output_text ?? "";
-            const webJson = parseWebResearchJson(webText);
-            applyWebSources(webJson);
-          }
-        } catch (err) {
-          console.error("[web-research/openai] failed:", err instanceof Error ? err.message : String(err));
-        }
-      }
+      // OpenAI fallback removed — adding 15s when Grok fails pushed total past 60s Vercel limit.
+      // Grok X search context is sufficient when web research is unavailable.
     }
   }
   // ────────────────────────────────────────────────────────────────────────────

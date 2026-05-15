@@ -124,7 +124,9 @@ type TrendPendingQ =
   | { type: "trend-topic-pick"; trends: TrendItem[]; seenTopics: string[] }
   | { type: "trend-more";       seenTopics: string[] }
   | { type: "trend-format";     topic: string; day: string; contentType: string }
-  | { type: "trend-slides";     topic: string; day: string; contentType: string };
+  | { type: "trend-slides";     topic: string; day: string; contentType: string }
+  | { type: "topic-format";     topic: string }
+  | { type: "topic-slides";     topic: string };
 
 type LegacyPendingQ = {
   type: "slide-count" | "single-page-confirm" | "paste-content";
@@ -2537,6 +2539,87 @@ export default function AgentCatalogPage() {
       return;
     }
 
+    /* ── Topic format handler: user answered single/carousel for a bare topic ── */
+    if (pendingQ && pendingQ.type === "topic-format") {
+      const pq = pendingQ;
+      setMessages((prev) => [...prev, { id: uuid(), role: "user", text }]);
+      setPendingQ(null);
+      const lower = text.toLowerCase();
+      const wantsCarousel = /carousel|slide|multi/i.test(lower);
+      const wantsSingle   = /single|one.?page|text.?post|no.?carousel/i.test(lower);
+      const slideInMsg    = extractSlideCount(text);
+
+      if (wantsSingle || !wantsCarousel) {
+        const agentId = uuid();
+        setMessages((prev) => [...prev, { id: agentId, role: "agent", generating: true, text: "" }]);
+        try {
+          const data = await generateFromChat("daily-content", pq.topic, { singlePage: true });
+          setMessages((prev) => prev.map((m) =>
+            m.id === agentId ? { ...m, generating: false, text: "Here you go:", resultType: "daily-content" as EmbedType, resultData: data } : m
+          ));
+        } catch (e) {
+          const msg = e instanceof Error ? e.message : "Generation failed";
+          setMessages((prev) => prev.map((m) =>
+            m.id === agentId ? { ...m, generating: false, text: `Sorry, something went wrong — ${msg}` } : m
+          ));
+          toast.error(msg);
+        }
+        return;
+      }
+      if (wantsCarousel && slideInMsg) {
+        const agentId = uuid();
+        setMessages((prev) => [...prev, { id: agentId, role: "agent", generating: true, text: "" }]);
+        try {
+          const data = await generateFromChat("daily-content", pq.topic, { slideCount: slideInMsg });
+          setMessages((prev) => prev.map((m) =>
+            m.id === agentId ? { ...m, generating: false, text: "Here you go:", resultType: "daily-content" as EmbedType, resultData: data } : m
+          ));
+        } catch (e) {
+          const msg = e instanceof Error ? e.message : "Generation failed";
+          setMessages((prev) => prev.map((m) =>
+            m.id === agentId ? { ...m, generating: false, text: `Sorry, something went wrong — ${msg}` } : m
+          ));
+          toast.error(msg);
+        }
+        return;
+      }
+      // Carousel but no slide count — ask
+      setMessages((prev) => [...prev, {
+        id: uuid(), role: "agent",
+        text: "How many slides would you like? (Recommended: 6–8)",
+        quickReplies: [
+          { label: "5 slides", value: "5" }, { label: "6 slides", value: "6" },
+          { label: "7 slides", value: "7" }, { label: "8 slides", value: "8" },
+        ],
+      }]);
+      setPendingQ({ type: "topic-slides", topic: pq.topic });
+      return;
+    }
+
+    /* ── Topic slides handler: user answered slide count for a bare topic ── */
+    if (pendingQ && pendingQ.type === "topic-slides") {
+      const pq = pendingQ;
+      setMessages((prev) => [...prev, { id: uuid(), role: "user", text }]);
+      setPendingQ(null);
+      const n = extractSlideCount(text) ?? parseInt(text, 10);
+      const slideCount = (!isNaN(n) && n >= 3 && n <= 20) ? n : 8;
+      const agentId = uuid();
+      setMessages((prev) => [...prev, { id: agentId, role: "agent", generating: true, text: "" }]);
+      try {
+        const data = await generateFromChat("daily-content", pq.topic, { slideCount });
+        setMessages((prev) => prev.map((m) =>
+          m.id === agentId ? { ...m, generating: false, text: "Here you go:", resultType: "daily-content" as EmbedType, resultData: data } : m
+        ));
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : "Generation failed";
+        setMessages((prev) => prev.map((m) =>
+          m.id === agentId ? { ...m, generating: false, text: `Sorry, something went wrong — ${msg}` } : m
+        ));
+        toast.error(msg);
+      }
+      return;
+    }
+
     /* ── Paste-content handler: user pasted after being asked ────────── */
     if (pendingQ && pendingQ.type === "paste-content") {
       const pq = pendingQ as LegacyPendingQ;
@@ -2720,14 +2803,20 @@ export default function AgentCatalogPage() {
 
       if (routed.action === "daily-content" || (routed.action === "topic-analysis" && routed.topic)) {
         const topic = routed.topic || text;
-        const slides = routed.slideCount ?? 8;
-        const opts = routed.isCarousel ? { slideCount: slides } : { singlePage: true };
-        const data = await generateFromChat("daily-content", topic, opts);
+        // Ask format preference — don't silently default to carousel
         setMessages((prev) => prev.map((m) =>
           m.id === agentId
-            ? { ...m, generating: false, text: "Here you go:", resultType: "daily-content", resultData: data }
+            ? {
+                ...m, generating: false,
+                text: `Got it!\n\n**"${topic}"**\n\nHow would you like this formatted?`,
+                quickReplies: [
+                  { label: "📄 Single Page Post", value: "single" },
+                  { label: "🎠 Carousel Slides",  value: "carousel" },
+                ],
+              }
             : m
         ));
+        setPendingQ({ type: "topic-format", topic });
         return;
       }
 
