@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
+import { getClaudeApiKey } from "@/lib/claude-secrets";
 
 type Slide = { position: number; type: string; title: string; body: string };
 
@@ -334,11 +335,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "No slides provided" }, { status: 400 });
     }
 
-    const apiKey = process.env.ANTHROPIC_API_KEY;
-    if (!apiKey) {
-      return NextResponse.json({ error: "ANTHROPIC_API_KEY not configured" }, { status: 500 });
-    }
-
+    const apiKey = await getClaudeApiKey();
     const client = new Anthropic({ apiKey });
 
     const htmlResults = await Promise.all(

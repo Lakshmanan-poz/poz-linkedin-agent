@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.95.0",
+    "@aws-sdk/client-secrets-manager": "^3.1050.0",
     "@e2b/code-interpreter": "^2.4.2",
     "@supabase/supabase-js": "^2.99.2",
     "@types/pdf-parse": "^1.1.5",

@@ -1,0 +1,27 @@
+# Stage 1 — build
+FROM node:20-alpine AS builder
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci
+COPY . .
+RUN npm run build
+
+# Stage 2 — Lambda Web Adapter (allows node HTTP servers to run on Lambda)
+FROM public.ecr.aws/awsguru/aws-lambda-adapter:0.8.4 AS adapter
+
+# Stage 3 — minimal runtime
+FROM node:20-slim AS runner
+COPY --from=adapter /lambda-adapter /opt/extensions/lambda-adapter
+
+ENV PORT=3000
+ENV AWS_LAMBDA_EXEC_WRAPPER=/opt/bootstrap
+ENV NODE_ENV=production
+ENV HOSTNAME=0.0.0.0
+
+WORKDIR /app
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./.next/static
+COPY --from=builder /app/public ./public
+
+EXPOSE 3000
+CMD ["node", "server.js"]
