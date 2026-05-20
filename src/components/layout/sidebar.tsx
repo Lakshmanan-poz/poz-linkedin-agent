@@ -100,7 +100,7 @@ function PozLogo({ size = 30 }: { size?: number }) {
 }
 
 /* ─── Chat session type (minimal) ────────────────────────────────────────────── */
-type SidebarChatSession = { session_id: string; title: string; last_message_at: string; messages: unknown[] };
+type SidebarChatSession = { session_id: string; title: string; last_message_at: string; messages: unknown[]; share_token?: string; is_shared?: boolean };
 
 function fmtChatDate(iso: string) {
   const d = new Date(iso);
@@ -127,8 +127,9 @@ export function Sidebar() {
   const [activeChatId,  setActiveChatId]  = useState<string | null>(null);
   const [chatSearch,    setChatSearch]    = useState("");
   const [openMenuId,    setOpenMenuId]    = useState<string | null>(null);
-  const [copiedId,      setCopiedId]      = useState<string | null>(null);
+  const [shareToast,    setShareToast]    = useState<{ type: "success" | "error" } | null>(null);
   const [deletingId,    setDeletingId]    = useState<string | null>(null);
+  const [sharingId,     setSharingId]     = useState<string | null>(null);
 
   useEffect(() => {
     fetch("/api/notifications")
@@ -161,6 +162,38 @@ export function Sidebar() {
     window.addEventListener("click", handler);
     return () => window.removeEventListener("click", handler);
   }, [openMenuId]);
+
+  async function handleShareSession(sessionId: string) {
+    setSharingId(sessionId);
+    setOpenMenuId(null);
+    setShareToast(null);
+    try {
+      const res  = await fetch("/api/agents/chat-history/share", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ session_id: sessionId }),
+      });
+      const data = await res.json();
+      if (data.share_url) {
+        try {
+          await navigator.clipboard.writeText(data.share_url);
+        } catch {
+          // Clipboard blocked — show the URL directly
+          window.prompt("Copy this share link:", data.share_url);
+        }
+        setShareToast({ type: "success" });
+        setTimeout(() => setShareToast(null), 2500);
+      } else {
+        setShareToast({ type: "error" });
+        setTimeout(() => setShareToast(null), 3500);
+      }
+    } catch {
+      setShareToast({ type: "error" });
+      setTimeout(() => setShareToast(null), 3500);
+    } finally {
+      setSharingId(null);
+    }
+  }
 
   async function handleDeleteSession(sessionId: string) {
     setDeletingId(sessionId);
@@ -448,6 +481,16 @@ export function Sidebar() {
               />
             </div>
 
+            {/* Share toast — rendered outside scroll so it's never clipped */}
+            {shareToast && (
+              <div
+                className="mx-2 mb-2 px-3 py-2 rounded-lg text-[11px] font-semibold text-white text-center transition-all"
+                style={{ background: shareToast.type === "success" ? "#16a34a" : "#dc2626" }}
+              >
+                {shareToast.type === "success" ? "Link copied to clipboard!" : "Share failed — run DB migration"}
+              </div>
+            )}
+
             {/* Session list */}
             <div
               className="overflow-y-auto space-y-2 pb-3"
@@ -466,99 +509,109 @@ export function Sidebar() {
                   <p className="px-3 py-1 text-[9px] font-bold uppercase tracking-widest" style={{ color: "var(--sidebar-foreground)", opacity: 0.35 }}>
                     {group.label}
                   </p>
-                  {group.items.map(s => (
-                    <div
-                      key={s.session_id}
-                      className="group/item relative mx-1 flex items-start gap-1 px-2.5 py-2 rounded-lg cursor-pointer transition-colors"
-                      style={s.session_id === activeChatId
-                        ? { background: "var(--sidebar-accent)", color: "var(--sidebar-accent-foreground)" }
-                        : { color: "var(--sidebar-foreground)" }
-                      }
-                      onClick={() => {
-                        setOpenMenuId(null);
-                        setActiveChatId(s.session_id);
-                        window.dispatchEvent(new CustomEvent("agent-catalog-load-session", { detail: { session: s } }));
-                      }}
-                      onMouseEnter={e => { if (s.session_id !== activeChatId) (e.currentTarget as HTMLElement).style.background = "var(--sidebar-accent)"; }}
-                      onMouseLeave={e => { if (s.session_id !== activeChatId) (e.currentTarget as HTMLElement).style.background = "transparent"; }}
-                    >
-                      {/* Text */}
-                      <div className="flex-1 min-w-0 pr-1">
-                        <p className="text-[11px] font-medium truncate leading-snug">{s.title ?? "Untitled"}</p>
-                        <p className="text-[9px] mt-0.5" style={{ opacity: 0.45 }}>{fmtChatDate(s.last_message_at)}</p>
-                      </div>
+                  {group.items.map(s => {
+                    const isActive = s.session_id === activeChatId;
+                    return (
+                      <div
+                        key={s.session_id}
+                        className="group/item relative flex items-center gap-1 rounded-lg cursor-pointer transition-all duration-100"
+                        style={{
+                          margin: "1px 4px",
+                          background: isActive ? "var(--sidebar-accent)" : "transparent",
+                          color: isActive ? "var(--sidebar-accent-foreground)" : "var(--sidebar-foreground)",
+                          borderLeft: isActive ? "3px solid var(--sidebar-primary)" : "3px solid transparent",
+                        }}
+                        onClick={() => {
+                          setOpenMenuId(null);
+                          setActiveChatId(s.session_id);
+                          window.dispatchEvent(new CustomEvent("agent-catalog-load-session", { detail: { session: s } }));
+                        }}
+                        onMouseEnter={e => { if (!isActive) (e.currentTarget as HTMLElement).style.background = "var(--sidebar-accent)"; }}
+                        onMouseLeave={e => { if (!isActive) (e.currentTarget as HTMLElement).style.background = "transparent"; }}
+                      >
+                        {/* Chat icon */}
+                        <div className="shrink-0 pl-2 py-2.5 opacity-40">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                          </svg>
+                        </div>
 
-                      {/* Action buttons — visible on hover */}
-                      <div className="shrink-0 flex items-center gap-0.5 opacity-0 group-hover/item:opacity-100 transition-opacity">
-                        <button
-                          onClick={e => {
-                            e.stopPropagation();
-                            setOpenMenuId(openMenuId === s.session_id ? null : s.session_id);
-                          }}
-                          className="w-5 h-5 flex items-center justify-center rounded text-[13px] font-bold leading-none hover:bg-black/10"
-                          style={{ color: "var(--sidebar-foreground)" }}
-                          title="More options"
-                        >
-                          ···
-                        </button>
-                        <button
-                          onClick={e => {
-                            e.stopPropagation();
-                            handleDeleteSession(s.session_id);
-                          }}
-                          className="w-5 h-5 flex items-center justify-center rounded text-[13px] font-bold leading-none hover:bg-red-100 hover:text-red-600 transition-colors"
-                          style={{ color: deletingId === s.session_id ? "transparent" : "var(--sidebar-foreground)" }}
-                          title="Delete conversation"
-                          disabled={deletingId === s.session_id}
-                        >
-                          {deletingId === s.session_id ? (
-                            <span className="w-2.5 h-2.5 rounded-full border border-current border-t-transparent animate-spin" />
-                          ) : "×"}
-                        </button>
-                      </div>
+                        {/* Title */}
+                        <div className="flex-1 min-w-0 py-2.5 pr-1">
+                          <p className="text-[12px] font-medium truncate leading-snug">{s.title ?? "Untitled"}</p>
+                        </div>
 
-                      {/* Dropdown menu */}
-                      {openMenuId === s.session_id && (
-                        <div
-                          className="absolute right-0 top-full mt-1 z-50 w-40 rounded-xl shadow-lg overflow-hidden"
-                          style={{ background: "var(--sidebar)", border: "1px solid var(--sidebar-border)" }}
-                          onClick={e => e.stopPropagation()}
-                        >
+                        {/* Action button — visible on hover */}
+                        <div className="shrink-0 pr-1.5 opacity-0 group-hover/item:opacity-100 transition-opacity">
                           <button
-                            className="w-full flex items-center gap-2 px-3 py-2 text-[11px] font-medium text-left transition-colors hover:bg-blue-50 hover:text-blue-700"
-                            onClick={() => {
-                              const url = `${window.location.origin}/share/${s.session_id}`;
-                              navigator.clipboard.writeText(url).then(() => {
-                                setCopiedId(s.session_id);
-                                setOpenMenuId(null);
-                                setTimeout(() => setCopiedId(null), 2500);
-                              });
+                            onClick={e => {
+                              e.stopPropagation();
+                              setOpenMenuId(openMenuId === s.session_id ? null : s.session_id);
                             }}
+                            className="w-6 h-6 flex items-center justify-center rounded-md hover:bg-black/10 transition-colors"
+                            style={{ color: "var(--sidebar-foreground)" }}
+                            title="More options"
                           >
-                            <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
-                            Copy share link
-                          </button>
-                          <button
-                            className="w-full flex items-center gap-2 px-3 py-2 text-[11px] font-medium text-left transition-colors hover:bg-blue-50 hover:text-blue-700"
-                            onClick={() => {
-                              setOpenMenuId(null);
-                              window.open(`/share/${s.session_id}`, "_blank");
-                            }}
-                          >
-                            <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" x2="21" y1="14" y2="3"/></svg>
-                            Open in new tab
+                            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+                              <circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/>
+                            </svg>
                           </button>
                         </div>
-                      )}
 
-                      {/* Copied confirmation badge */}
-                      {copiedId === s.session_id && (
-                        <span className="absolute right-2 -top-6 text-[10px] font-semibold bg-green-600 text-white px-2 py-0.5 rounded-full shadow-sm">
-                          Copied!
-                        </span>
-                      )}
-                    </div>
-                  ))}
+                        {/* Dropdown menu — ChatGPT style */}
+                        {openMenuId === s.session_id && (
+                          <div
+                            className="absolute right-1 top-full mt-1 z-50 w-44 rounded-xl shadow-xl overflow-hidden py-1"
+                            style={{ background: "var(--sidebar)", border: "1px solid var(--sidebar-border)" }}
+                            onClick={e => e.stopPropagation()}
+                          >
+                            {/* Share */}
+                            <button
+                              className="w-full flex items-center gap-2.5 px-3 py-2 text-[12px] font-medium text-left transition-colors"
+                              style={{ color: "var(--sidebar-foreground)" }}
+                              onMouseEnter={e => (e.currentTarget.style.background = "var(--sidebar-accent)")}
+                              onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+                              disabled={sharingId === s.session_id}
+                              onClick={() => handleShareSession(s.session_id)}
+                            >
+                              {sharingId === s.session_id ? (
+                                <span className="w-3 h-3 rounded-full border border-current border-t-transparent animate-spin" />
+                              ) : (
+                                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                  <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+                                  <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+                                </svg>
+                              )}
+                              {sharingId === s.session_id ? "Generating…" : "Share & copy link"}
+                            </button>
+
+                            <div style={{ height: 1, background: "var(--sidebar-border)", margin: "2px 0" }} />
+
+                            {/* Delete */}
+                            <button
+                              className="w-full flex items-center gap-2.5 px-3 py-2 text-[12px] font-medium text-left text-red-500 transition-colors"
+                              onMouseEnter={e => (e.currentTarget.style.background = "rgba(239,68,68,0.08)")}
+                              onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+                              disabled={deletingId === s.session_id}
+                              onClick={() => { setOpenMenuId(null); handleDeleteSession(s.session_id); }}
+                            >
+                              {deletingId === s.session_id ? (
+                                <span className="w-3 h-3 rounded-full border border-current border-t-transparent animate-spin" />
+                              ) : (
+                                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                  <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                                  <path d="M10 11v6"/><path d="M14 11v6"/>
+                                  <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+                                </svg>
+                              )}
+                              {deletingId === s.session_id ? "Deleting…" : "Delete"}
+                            </button>
+                          </div>
+                        )}
+
+                      </div>
+                    );
+                  })}
                 </div>
               ))}
             </div>

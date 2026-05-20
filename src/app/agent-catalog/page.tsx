@@ -2199,12 +2199,24 @@ export default function AgentCatalogPage() {
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     saveTimerRef.current = setTimeout(() => {
       const title = messages.find((m) => m.role === "user")?.text?.slice(0, 72) ?? "Chat";
-      // Serialize messages — strip resultData for lighter storage but keep type
-      const serialized = messages.map((m) => ({
-        id: m.id, role: m.role, text: m.text,
-        resultType: m.resultType ?? null,
-        resultData: m.resultData ?? null,
-      }));
+      const serialized = messages.map((m) => {
+        let rd: unknown = null;
+        if (m.resultData) {
+          // Strip heavy raw-data fields that are not needed for display
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          const { _xTrends, _webSources, ...displayData } = m.resultData as DailyResult & { _xTrends?: unknown; _webSources?: unknown };
+          rd = displayData;
+        }
+        return {
+          id: m.id,
+          role: m.role,
+          text: m.text,
+          resultType: m.resultType ?? null,
+          resultData: rd,
+          trendList: m.trendList ?? null,
+          trendSources: m.trendSources ?? null,
+        };
+      });
       fetch("/api/agents/chat-history", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -2407,14 +2419,18 @@ export default function AgentCatalogPage() {
 
       const lower = text.toLowerCase();
 
-      // Match topic FIRST — before "more" check, so sentences containing the
-      // word "more" (e.g. "10x more in 5 years") don't trigger "show more topics".
-      const byExact  = pq.trends.find((t) => t.topic === text);
-      const numMatch = !byExact ? text.match(/\b(\d+)\b/) : null;
-      const idx      = numMatch ? parseInt(numMatch[1], 10) - 1 : -1;
-      const picked   = byExact
+      // Match order: exact → partial text → number index.
+      // Partial text runs BEFORE number so "5 years" in a topic title doesn't
+      // accidentally pick index 4 instead of the intended topic.
+      const byExact   = pq.trends.find((t) => t.topic.trim() === text.trim());
+      const byPartial = !byExact
+        ? pq.trends.find((t) => t.topic.toLowerCase().includes(text.toLowerCase().slice(0, 30)) || text.toLowerCase().includes(t.topic.toLowerCase().slice(0, 30)))
+        : null;
+      const numMatch  = !byExact && !byPartial ? text.match(/^\s*(\d+)\s*$/) : null;
+      const idx       = numMatch ? parseInt(numMatch[1], 10) - 1 : -1;
+      const picked    = byExact
+        ?? byPartial
         ?? (idx >= 0 && idx < pq.trends.length ? pq.trends[idx] : null)
-        ?? pq.trends.find((t) => t.topic.toLowerCase().includes(text.toLowerCase().slice(0, 30)))
         ?? null;
 
       // Only treat as "show more topics" when NO topic was matched AND the
@@ -3673,6 +3689,15 @@ export default function AgentCatalogPage() {
                     )}
                     {!msg.generating && msg.resultType === "content-refiner" && msg.resultData && (
                       <RefinerResultCard data={msg.resultData as RefinerResult} userId={currentUser?.id} />
+                    )}
+                    {/* Fallback for history sessions where resultData was not persisted */}
+                    {!msg.generating && msg.resultType && !msg.resultData && (
+                      <div className="mt-3 rounded-xl border border-dashed border-border bg-muted/30 px-5 py-4 flex items-center gap-3">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="text-muted-foreground shrink-0"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm text-muted-foreground leading-snug">Content preview unavailable for this session. Start a new chat and regenerate to view and export the full result.</p>
+                        </div>
+                      </div>
                     )}
                   </div>
                 </div>

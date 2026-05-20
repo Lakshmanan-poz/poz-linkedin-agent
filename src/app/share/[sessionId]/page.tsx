@@ -3,55 +3,33 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 
-/* ─── Types ──────────────────────────────────────────────────────────────────── */
-type Slide       = { position: number; type: string; title: string; body: string };
-type CalDay      = { day: string; type: string; contentFocus: string; brief: string; hook: string; hashtags: string[] };
-type RefinedSlide = { position: number; type: string; title: string; body: string; status: string; note: string };
-
-type DailyResult = {
+/* ── Types ──────────────────────────────────────────────────────────────────── */
+type SlideItem   = { position: number; type: string; title: string; body: string };
+type ResultData  = {
   day?: string; contentType?: string; topic?: string;
-  slides?: Slide[];
-  caption?: string; hashtags?: string[];
-  bodyPost?: string; outreachHook?: string;
+  slides?: SlideItem[]; caption?: string; hashtags?: string[];
+  bodyPost?: string;
+  weekOf?: string; company?: string; days?: unknown[];
+  overallScore?: number; refined?: { slides?: SlideItem[]; caption?: string; hashtags?: string[] };
 };
-type CalendarResult = {
-  weekOf?: string; company?: string; summary?: string;
-  days?: CalDay[];
+type TrendItem   = { topic: string; day: string; type: string; handle?: string; authority?: string; whatTheySaid?: string };
+type ChatMessage = {
+  id: string; role: "user" | "agent"; text: string;
+  resultType?: string; resultData?: ResultData;
+  trendList?: TrendItem[];
+  trendSources?: { handle: string; authority?: string }[];
 };
-type RefinerResult = {
-  overallScore?: number;
-  refined?: { slides?: RefinedSlide[]; caption?: string; hashtags?: string[] };
-  publishReady?: boolean; finalNote?: string;
-};
+type SharedChat  = { title: string; messages: ChatMessage[]; created_at: string; last_message_at: string };
 
-type ChatMsg = {
-  id: string;
-  role: "user" | "agent";
-  text: string;
-  generating?: boolean;
-  resultType?: string;
-  resultData?: DailyResult | CalendarResult | RefinerResult;
-};
-
-type Session = {
-  session_id: string;
-  title: string;
-  messages: ChatMsg[];
-  last_message_at: string;
-};
-
-/* ─── POZ Logo ───────────────────────────────────────────────────────────────── */
-function PozLogo({ size = 32 }: { size?: number }) {
+/* ── Helpers ────────────────────────────────────────────────────────────────── */
+function PozStar() {
   return (
-    <div
-      className="rounded-xl bg-gradient-to-br from-orange-400 via-red-500 to-pink-600 flex items-center justify-center shadow-md shrink-0"
-      style={{ width: size, height: size }}
-    >
-      <svg xmlns="http://www.w3.org/2000/svg" width={size * 0.44} height={size * 0.44} viewBox="0 0 24 24"
+    <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-orange-400 via-red-500 to-pink-600 flex items-center justify-center shrink-0">
+      <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24"
         fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round">
         <line x1="12" y1="2"  x2="12" y2="6"/>  <line x1="12" y1="18" x2="12" y2="22"/>
         <line x1="2"  y1="12" x2="6"  y2="12"/>  <line x1="18" y1="12" x2="22" y2="12"/>
-        <line x1="4.93" y1="4.93"  x2="7.76" y2="7.76"/>
+        <line x1="4.93" y1="4.93"  x2="7.76"  y2="7.76"/>
         <line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/>
         <line x1="4.93"  y1="19.07" x2="7.76"  y2="16.24"/>
         <line x1="16.24" y1="7.76"  x2="19.07" y2="4.93"/>
@@ -60,187 +38,104 @@ function PozLogo({ size = 32 }: { size?: number }) {
   );
 }
 
-/* ─── Result renderers ───────────────────────────────────────────────────────── */
-function DailyCard({ data }: { data: DailyResult }) {
-  return (
-    <div className="mt-3 space-y-3">
-      {/* Meta */}
-      {(data.day || data.contentType || data.topic) && (
-        <div className="flex flex-wrap gap-2 text-[11px]">
-          {data.day        && <span className="px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 font-semibold">{data.day}</span>}
-          {data.contentType && <span className="px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 font-semibold">{data.contentType}</span>}
-        </div>
-      )}
-      {data.topic && <p className="text-sm font-semibold text-gray-800 leading-snug">{data.topic}</p>}
-
-      {/* Slides */}
-      {data.slides && data.slides.length > 0 && (
-        <div className="space-y-2">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">
-            Carousel · {data.slides.length} Slides
-          </p>
-          {data.slides.map(sl => (
-            <div key={sl.position} className="rounded-xl border border-gray-200 bg-gray-50 p-3 space-y-1">
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] font-black text-blue-600 tabular-nums">
-                  {String(sl.position).padStart(2, "0")}
-                </span>
-                <span className="text-[10px] text-gray-400 uppercase tracking-wide font-semibold">{sl.type}</span>
-              </div>
-              <p className="text-sm font-bold text-gray-800 leading-snug">{sl.title}</p>
-              <p className="text-xs text-gray-500 leading-relaxed">{sl.body}</p>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Body post */}
-      {data.bodyPost && (
-        <div className="rounded-xl border border-gray-200 bg-white p-3 space-y-1">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">LinkedIn Post Body</p>
-          <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{data.bodyPost}</p>
-        </div>
-      )}
-
-      {/* Caption */}
-      {data.caption && (
-        <div className="rounded-xl border border-gray-200 bg-white p-3 space-y-1">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Caption</p>
-          <p className="text-xs text-gray-600 leading-relaxed whitespace-pre-wrap">{data.caption}</p>
-        </div>
-      )}
-
-      {/* Hashtags */}
-      {data.hashtags && data.hashtags.length > 0 && (
-        <div className="flex flex-wrap gap-1.5">
-          {data.hashtags.map(h => (
-            <span key={h} className="text-[11px] px-2 py-0.5 rounded border border-blue-200 text-blue-600 font-mono bg-blue-50">
-              {h.startsWith("#") ? h : `#${h}`}
-            </span>
-          ))}
-        </div>
-      )}
-
-      {/* Outreach hook */}
-      {data.outreachHook && (
-        <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 p-3 space-y-1">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Outreach Hook</p>
-          <p className="text-xs text-gray-600 italic leading-relaxed">&ldquo;{data.outreachHook}&rdquo;</p>
-        </div>
-      )}
-    </div>
-  );
+function fmtDate(iso: string) {
+  return new Date(iso).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
 }
 
-function CalendarCard({ data }: { data: CalendarResult }) {
-  const dayColors: Record<string, string> = {
-    Monday: "border-blue-200 bg-blue-50",
-    Tuesday: "border-purple-200 bg-purple-50",
-    Wednesday: "border-orange-200 bg-orange-50",
-    Thursday: "border-emerald-200 bg-emerald-50",
-    Friday: "border-rose-200 bg-rose-50",
-  };
-  return (
-    <div className="mt-3 space-y-3">
-      {data.summary && <p className="text-xs text-gray-500 leading-relaxed italic">{data.summary}</p>}
-      {data.days && data.days.length > 0 && (
-        <div className="space-y-2">
-          {data.days.map(d => (
-            <div key={d.day} className={`rounded-xl border p-3 space-y-1 ${dayColors[d.day] ?? "border-gray-200 bg-gray-50"}`}>
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-xs font-bold text-gray-700">{d.day}</span>
-                <span className="text-[10px] px-1.5 py-0.5 rounded bg-white/70 border border-gray-200 text-gray-500 font-semibold">{d.type}</span>
-              </div>
-              <p className="text-sm font-semibold text-gray-800 leading-snug">{d.contentFocus}</p>
-              <p className="text-xs text-gray-500 leading-relaxed">{d.brief}</p>
-              {d.hashtags && d.hashtags.length > 0 && (
-                <div className="flex flex-wrap gap-1 pt-1">
-                  {d.hashtags.map(h => (
-                    <span key={h} className="text-[10px] text-blue-600 font-mono">{h.startsWith("#") ? h : `#${h}`}</span>
-                  ))}
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function RefinerCard({ data }: { data: RefinerResult }) {
-  const refined = data.refined;
-  return (
-    <div className="mt-3 space-y-3">
-      {data.overallScore != null && (
-        <div className="flex items-center gap-2">
-          <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Overall Score</span>
-          <span className={`text-sm font-bold ${data.overallScore >= 80 ? "text-emerald-600" : data.overallScore >= 60 ? "text-amber-600" : "text-red-500"}`}>
-            {data.overallScore}/100
+/* ── Result card (read-only) ────────────────────────────────────────────────── */
+function SharedResultCard({ resultType, data }: { resultType: string; data: ResultData }) {
+  if (resultType === "daily-content") {
+    return (
+      <div className="mt-3 rounded-2xl border border-border bg-card overflow-hidden">
+        <div className="px-5 py-3 border-b border-border bg-muted/40 flex items-center justify-between">
+          <div>
+            <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
+              {data.day} · {data.contentType}
+            </p>
+            <p className="text-sm font-semibold text-foreground mt-0.5">{data.topic}</p>
+          </div>
+          <span className="text-[10px] font-semibold px-2 py-1 rounded-full bg-primary/10 text-primary">
+            {data.slides?.length ? `${data.slides.length} slides` : "Single post"}
           </span>
-          {data.publishReady && <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-bold">Publish Ready</span>}
         </div>
-      )}
-      {data.finalNote && <p className="text-xs text-gray-500 italic leading-relaxed">{data.finalNote}</p>}
-      {refined?.slides && refined.slides.length > 0 && (
-        <div className="space-y-2">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Refined Slides</p>
-          {refined.slides.map(sl => (
-            <div key={sl.position} className="rounded-xl border border-gray-200 bg-gray-50 p-3 space-y-1">
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] font-black text-blue-600 tabular-nums">{String(sl.position).padStart(2, "0")}</span>
-                <span className={`text-[10px] px-1.5 py-0.5 rounded font-semibold ${sl.status === "Fixed" ? "bg-amber-100 text-amber-700" : "bg-gray-100 text-gray-500"}`}>{sl.status}</span>
-              </div>
-              <p className="text-sm font-bold text-gray-800 leading-snug">{sl.title}</p>
-              <p className="text-xs text-gray-500 leading-relaxed">{sl.body}</p>
-              {sl.note && <p className="text-[10px] text-blue-500 italic">{sl.note}</p>}
-            </div>
-          ))}
-        </div>
-      )}
-      {refined?.caption && (
-        <div className="rounded-xl border border-gray-200 bg-white p-3 space-y-1">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Caption</p>
-          <p className="text-xs text-gray-600 leading-relaxed whitespace-pre-wrap">{refined.caption}</p>
-        </div>
-      )}
-      {refined?.hashtags && refined.hashtags.length > 0 && (
-        <div className="flex flex-wrap gap-1.5">
-          {refined.hashtags.map(h => (
-            <span key={h} className="text-[11px] px-2 py-0.5 rounded border border-blue-200 text-blue-600 font-mono bg-blue-50">
-              {h.startsWith("#") ? h : `#${h}`}
-            </span>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
 
-function ResultBlock({ msg }: { msg: ChatMsg }) {
-  if (!msg.resultType || !msg.resultData) return null;
-  const t = msg.resultType;
-  if (t === "daily-content")   return <DailyCard    data={msg.resultData as DailyResult}    />;
-  if (t === "weekly-calendar") return <CalendarCard data={msg.resultData as CalendarResult} />;
-  if (t === "content-refiner") return <RefinerCard  data={msg.resultData as RefinerResult}  />;
+        {data.bodyPost && (
+          <div className="px-5 py-4">
+            <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">{data.bodyPost}</p>
+          </div>
+        )}
+
+        {data.slides && data.slides.length > 0 && (
+          <div className="px-5 py-4 space-y-3">
+            {data.slides.map((s) => (
+              <div key={s.position} className="rounded-xl border border-border bg-background p-3">
+                <div className="flex items-center gap-2 mb-1.5">
+                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-primary/10 text-primary">{s.position}</span>
+                  <span className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold">{s.type}</span>
+                </div>
+                <p className="text-sm font-semibold text-foreground">{s.title}</p>
+                {s.body && <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{s.body}</p>}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {(data.caption || (data.hashtags && data.hashtags.length > 0)) && (
+          <div className="px-5 py-3 border-t border-border bg-muted/20 space-y-2">
+            {data.caption && <p className="text-xs text-foreground leading-relaxed">{data.caption}</p>}
+            {data.hashtags && data.hashtags.length > 0 && (
+              <p className="text-xs text-primary font-medium">{data.hashtags.map(h => `#${h}`).join(" ")}</p>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  if (resultType === "weekly-calendar") {
+    return (
+      <div className="mt-3 rounded-2xl border border-border bg-card px-5 py-4">
+        <p className="text-sm font-semibold text-foreground mb-1">
+          Weekly Content Calendar
+          {data.weekOf && <span className="text-muted-foreground font-normal ml-2 text-xs">w/c {data.weekOf}</span>}
+        </p>
+        <p className="text-xs text-muted-foreground">{data.company}</p>
+        {Array.isArray(data.days) && <p className="text-xs text-muted-foreground mt-2">{data.days.length} days planned</p>}
+      </div>
+    );
+  }
+
+  if (resultType === "content-refiner") {
+    return (
+      <div className="mt-3 rounded-2xl border border-border bg-card px-5 py-4 flex items-center gap-3">
+        <span className="text-2xl font-bold text-foreground">{data.overallScore ?? "—"}</span>
+        <span className="text-xs text-muted-foreground">/10 overall score</span>
+      </div>
+    );
+  }
+
   return null;
 }
 
-/* ─── Main page ──────────────────────────────────────────────────────────────── */
+/* ── Page ───────────────────────────────────────────────────────────────────── */
 export default function SharePage() {
-  const params    = useParams();
-  const sessionId = params.sessionId as string;
-
-  const [session,  setSession]  = useState<Session | null>(null);
-  const [loading,  setLoading]  = useState(true);
-  const [notFound, setNotFound] = useState(false);
-  const [copied,   setCopied]   = useState(false);
+  const { sessionId } = useParams<{ sessionId: string }>();
+  const [chat,    setChat]    = useState<SharedChat | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error,   setError]   = useState<string | null>(null);
+  const [copied,  setCopied]  = useState(false);
 
   useEffect(() => {
-    fetch(`/api/share/${sessionId}`)
-      .then(r => { if (!r.ok) { setNotFound(true); setLoading(false); return null; } return r.json(); })
-      .then(data => { if (data) { setSession(data); setLoading(false); } })
-      .catch(() => { setNotFound(true); setLoading(false); });
+    if (!sessionId) return;
+    // sessionId here is actually the share_token (UUID) generated by the share API
+    fetch(`/api/agents/chat-history/share?token=${sessionId}`)
+      .then(r => r.json())
+      .then(d => {
+        if (d.error) { setError(d.error); return; }
+        setChat(d as SharedChat);
+      })
+      .catch(() => setError("Failed to load shared chat"))
+      .finally(() => setLoading(false));
   }, [sessionId]);
 
   function copyLink() {
@@ -250,114 +145,175 @@ export default function SharePage() {
     });
   }
 
-  const messages = (session?.messages ?? []).filter(
-    (m): m is ChatMsg =>
-      (m.role === "user" || m.role === "agent") &&
-      !m.generating &&
-      typeof m.text === "string" &&
-      m.text.trim().length > 0
-  );
-
-  /* ── Loading ── */
-  if (loading) return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-      <div className="flex items-center gap-3 text-gray-400 text-sm">
-        <svg className="animate-spin w-5 h-5" viewBox="0 0 24 24" fill="none">
-          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
-        </svg>
-        Loading conversation…
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+          <p className="text-sm text-muted-foreground">Loading shared chat…</p>
+        </div>
       </div>
-    </div>
-  );
+    );
+  }
 
-  /* ── Not found ── */
-  if (notFound) return (
-    <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center gap-4">
-      <PozLogo size={48} />
-      <p className="text-lg font-semibold text-gray-700">Conversation not found</p>
-      <p className="text-sm text-gray-400">This link may be invalid or the session was deleted.</p>
-    </div>
-  );
+  if (error || !chat) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background px-4">
+        <div className="text-center max-w-sm">
+          <div className="w-12 h-12 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-4">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
+              fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+              className="text-muted-foreground">
+              <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/>
+              <line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+          </div>
+          <h1 className="text-lg font-semibold text-foreground mb-2">Chat not found</h1>
+          <p className="text-sm text-muted-foreground">This shared link may have expired or been revoked.</p>
+        </div>
+      </div>
+    );
+  }
 
-  /* ── Share view ── */
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-background flex flex-col">
 
       {/* Header */}
-      <div className="sticky top-0 z-10 bg-white border-b border-gray-200 shadow-sm">
-        <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
+      <header className="shrink-0 sticky top-0 z-10 bg-background/95 backdrop-blur border-b border-border">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3 min-w-0">
-            <PozLogo size={32} />
+            <PozStar />
             <div className="min-w-0">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">POZ Agent Catalog</p>
-              <p className="text-sm font-semibold text-gray-800 truncate leading-tight">
-                {session?.title ?? "Conversation"}
-              </p>
+              <p className="text-sm font-semibold text-foreground truncate">{chat.title}</p>
+              <p className="text-[10px] text-muted-foreground">{fmtDate(chat.last_message_at)}</p>
             </div>
           </div>
-          <div className="flex items-center gap-2 shrink-0">
-            {session && (
-              <span className="text-[11px] text-gray-400 hidden sm:block">
-                {new Date(session.last_message_at).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}
-              </span>
+          <button
+            onClick={copyLink}
+            className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border text-xs font-medium text-foreground hover:bg-accent transition-colors"
+          >
+            {copied ? (
+              <>
+                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                Copied!
+              </>
+            ) : (
+              <>
+                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+                  <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+                </svg>
+                Copy link
+              </>
             )}
-            <button
-              onClick={copyLink}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors"
-              style={copied
-                ? { background: "#f0fdf4", color: "#16a34a", borderColor: "#86efac" }
-                : { background: "#eff6ff", color: "#2563eb", borderColor: "#bfdbfe" }}
-            >
-              {copied ? (
-                <><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Copied!</>
-              ) : (
-                <><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>Copy link</>
-              )}
-            </button>
-          </div>
+          </button>
         </div>
-      </div>
+      </header>
 
       {/* Messages */}
-      <div className="max-w-3xl mx-auto px-4 py-8 space-y-5">
-        {messages.length === 0 && (
-          <p className="text-center text-gray-400 text-sm py-16">This conversation has no messages to display.</p>
-        )}
-
-        {messages.map((msg, i) => (
-          <div key={msg.id ?? i} className={`flex gap-3 ${msg.role === "user" ? "flex-row-reverse" : "flex-row"}`}>
-
-            {/* Avatar */}
-            {msg.role === "agent"
-              ? <div className="shrink-0 mt-0.5"><PozLogo size={28} /></div>
-              : <div className="w-7 h-7 rounded-full bg-blue-600 flex items-center justify-center text-white text-[11px] font-bold shrink-0 mt-0.5">U</div>
-            }
-
-            {/* Bubble + result block */}
-            <div className={`flex flex-col gap-1 ${msg.role === "user" ? "items-end max-w-[78%]" : "items-start w-full max-w-[88%]"}`}>
-              <div className={`px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap ${
-                msg.role === "user"
-                  ? "bg-blue-600 text-white rounded-2xl rounded-tr-sm"
-                  : "bg-white border border-gray-200 text-gray-800 rounded-2xl rounded-tl-sm shadow-sm w-full"
-              }`}>
-                {msg.text}
-
-                {/* Inline result data */}
-                {msg.role === "agent" && msg.resultData && (
-                  <ResultBlock msg={msg} />
-                )}
+      <main className="flex-1 overflow-y-auto">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8 space-y-8">
+          {chat.messages.map((msg) =>
+            msg.role === "user" ? (
+              <div key={msg.id} className="flex justify-end">
+                <div className="max-w-[78%] px-4 py-3 rounded-[20px] rounded-tr-[6px] bg-primary text-primary-foreground text-[15px] leading-relaxed">
+                  {msg.text}
+                </div>
               </div>
-            </div>
-          </div>
-        ))}
+            ) : (
+              <div key={msg.id} className="flex items-start gap-4">
+                <PozStar />
+                <div className="flex-1 min-w-0 space-y-2 pt-0.5">
+                  {msg.text && (
+                    <p className="text-[15px] text-foreground leading-relaxed whitespace-pre-wrap">{msg.text}</p>
+                  )}
 
-        {/* Footer */}
-        <div className="pt-10 pb-4 flex items-center justify-center gap-2.5 text-[11px] text-gray-300">
-          <PozLogo size={18} />
-          <span>Shared via <strong className="text-gray-400">POZ Social</strong> · AI Content Platform</span>
+                  {msg.trendSources && msg.trendSources.length > 0 && (
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 px-3 py-2 rounded-xl bg-muted/40 border border-border/60 mt-2">
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-black text-white font-bold shrink-0">𝕏</span>
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60 shrink-0">Sources</span>
+                      <span className="text-muted-foreground/40 text-[10px] shrink-0">·</span>
+                      {msg.trendSources.map((s, i) => (
+                        <span key={i} className="text-[11px] text-foreground font-medium">
+                          {s.handle}
+                          {s.authority && <span className="text-muted-foreground font-normal"> ({s.authority})</span>}
+                          {i < msg.trendSources!.length - 1 && <span className="text-muted-foreground">,</span>}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
+                  {msg.trendList && msg.trendList.length > 0 && (
+                    <div className="space-y-2 mt-2">
+                      {msg.trendList.map((t, i) => {
+                        const initial = t.handle ? t.handle.replace("@", "").charAt(0).toUpperCase() : String(i + 1);
+                        return (
+                          <div key={i} className="flex items-start gap-3 px-4 py-3 rounded-xl border border-border bg-card">
+                            <div className="relative shrink-0 w-8 h-8 rounded-full overflow-hidden flex items-center justify-center text-xs font-black text-white mt-0.5 bg-orange-500">
+                              <span className="select-none">{initial}</span>
+                              {t.handle && (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img
+                                  src={`https://unavatar.io/x/${t.handle.replace("@", "")}`}
+                                  alt=""
+                                  className="absolute inset-0 w-full h-full object-cover"
+                                  onError={(e) => { e.currentTarget.style.display = "none"; }}
+                                />
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              {t.handle ? (
+                                <div className="flex items-center gap-1.5 flex-wrap mb-1">
+                                  <span className="text-sm font-bold text-foreground">{t.handle}</span>
+                                  {t.authority && (
+                                    <span className="text-[10px] text-muted-foreground border border-border rounded-full px-1.5 py-0.5 leading-none">{t.authority}</span>
+                                  )}
+                                  <span className="ml-auto text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-orange-100 text-orange-700 whitespace-nowrap shrink-0">{i + 1}</span>
+                                </div>
+                              ) : (
+                                <div className="flex items-center gap-1.5 mb-0.5">
+                                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-orange-100 text-orange-700 whitespace-nowrap">{t.day} · {t.type}</span>
+                                </div>
+                              )}
+                              {t.whatTheySaid && (
+                                <p className="text-[11px] text-muted-foreground leading-snug mb-1.5 line-clamp-2 italic">&ldquo;{t.whatTheySaid}&rdquo;</p>
+                              )}
+                              <div className="flex items-start gap-1.5">
+                                <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide shrink-0 mt-0.5">Topic →</span>
+                                <p className="text-sm font-semibold text-foreground leading-snug">{t.topic}</p>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {msg.resultType && msg.resultData && (
+                    <SharedResultCard resultType={msg.resultType} data={msg.resultData} />
+                  )}
+
+                  {msg.resultType && !msg.resultData && (
+                    <div className="mt-2 rounded-xl border border-dashed border-border bg-muted/30 px-4 py-3">
+                      <p className="text-xs text-muted-foreground">Content preview not available in this shared view.</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )
+          )}
         </div>
-      </div>
+      </main>
+
+      {/* Footer */}
+      <footer className="shrink-0 border-t border-border py-4">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 flex items-center justify-between">
+          <p className="text-[11px] text-muted-foreground">
+            Shared from <span className="font-semibold text-foreground">POZ Social</span> · AI Content Platform
+          </p>
+          <p className="text-[11px] text-muted-foreground">Read-only view</p>
+        </div>
+      </footer>
     </div>
   );
 }

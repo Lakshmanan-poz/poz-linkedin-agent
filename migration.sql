@@ -245,9 +245,15 @@ CREATE TABLE IF NOT EXISTS agent_catalog_chat_history (
   user_id          BIGINT       NOT NULL REFERENCES team_members(id) ON DELETE CASCADE,
   title            TEXT         NOT NULL DEFAULT 'Chat',
   messages         JSONB        NOT NULL DEFAULT '[]'::jsonb,
+  share_token      TEXT         UNIQUE,
+  is_shared        BOOLEAN      NOT NULL DEFAULT FALSE,
   last_message_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
   created_at       TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
+
+-- For existing databases: add share columns if they don't exist
+ALTER TABLE agent_catalog_chat_history ADD COLUMN IF NOT EXISTS share_token TEXT UNIQUE;
+ALTER TABLE agent_catalog_chat_history ADD COLUMN IF NOT EXISTS is_shared BOOLEAN NOT NULL DEFAULT FALSE;
 
 CREATE INDEX IF NOT EXISTS idx_agent_catalog_chat_history_user
   ON agent_catalog_chat_history (user_id, last_message_at DESC);
