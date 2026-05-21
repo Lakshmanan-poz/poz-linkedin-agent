@@ -3,6 +3,7 @@ import OpenAI from "openai";
 import { verifyToken, COOKIE_NAME } from "@/lib/auth";
 import { getSetting } from "@/lib/db/settings";
 import { getDocumentsByIds, retrieveRelevantChunks } from "@/lib/db/documents";
+import { getOpenAIApiKey } from "@/lib/secrets";
 
 export const maxDuration = 60;
 
@@ -20,7 +21,7 @@ export async function POST(request: NextRequest) {
   if (!question) return NextResponse.json({ error: "question is required" }, { status: 400 });
   if (!doc_ids?.length) return NextResponse.json({ error: "doc_ids is required" }, { status: 400 });
 
-  const apiKey = process.env.OPENAI_API_KEY || await getSetting("openai_api_key");
+  const apiKey = await getOpenAIApiKey() || await getSetting("openai_api_key");
   if (!apiKey) return NextResponse.json({ error: "OpenAI API key not configured" }, { status: 500 });
 
   // Fetch document content

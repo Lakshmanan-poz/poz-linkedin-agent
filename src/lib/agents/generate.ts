@@ -1,5 +1,6 @@
 import OpenAI from "openai";
 import { getSetting } from "../db/settings";
+import { getOpenAIApiKey } from "../secrets";
 import { SkillId } from "./types";
 import { POZ_BRAND_GUIDELINES } from "./poz-brand";
 
@@ -1643,7 +1644,7 @@ HARD REQUIREMENT: minimum 20 sources in the sources array. Search multiple angle
   }
   // ────────────────────────────────────────────────────────────────────────────
 
-  const apiKey = process.env.OPENAI_API_KEY || storedApiKey;
+  const apiKey = await getOpenAIApiKey() || storedApiKey;
   if (!apiKey) throw new Error("OpenAI API key not configured");
 
   const model = defaultModelSetting || "gpt-4o";

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
 import { verifyToken, COOKIE_NAME } from "@/lib/auth";
 import { getSetting } from "@/lib/db/settings";
+import { getOpenAIApiKey } from "@/lib/secrets";
 
 export const maxDuration = 30;
 
@@ -64,7 +65,7 @@ export async function POST(request: NextRequest) {
 
     if (!message) return NextResponse.json({ error: "message is required" }, { status: 400 });
 
-    const apiKey = process.env.OPENAI_API_KEY || await getSetting("openai_api_key");
+    const apiKey = await getOpenAIApiKey() || await getSetting("openai_api_key");
     if (!apiKey) return NextResponse.json({ error: "OpenAI API key not configured" }, { status: 500 });
 
     const model = await getSetting("ai_model") || "gpt-4o";

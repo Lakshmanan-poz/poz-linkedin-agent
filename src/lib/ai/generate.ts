@@ -3,6 +3,7 @@ import { PostType } from "../types";
 import { getDefaultTemplate } from "../db/templates";
 import { getSetting } from "../db/settings";
 import { POZ_BRAND_GUIDELINES } from "../agents/poz-brand";
+import { getOpenAIApiKey } from "../secrets";
 
 export interface GeneratedPost {
   title: string;
@@ -67,7 +68,7 @@ export async function generatePost(params: {
   additionalContext?: string;
   slideCount?: number;
 }): Promise<GeneratedPost | GeneratedCarousel> {
-  const apiKey = process.env.OPENAI_API_KEY || (await getSetting("openai_api_key"));
+  const apiKey = await getOpenAIApiKey() || (await getSetting("openai_api_key"));
   if (!apiKey) throw new Error("OpenAI API key not configured");
 
   const model = (await getSetting("default_model")) || "gpt-4o";

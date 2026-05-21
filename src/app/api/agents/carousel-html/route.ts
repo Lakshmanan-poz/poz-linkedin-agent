@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
-import { getClaudeApiKey } from "@/lib/claude-secrets";
+import { getClaudeApiKey } from "@/lib/secrets";
 
 type Slide = { position: number; type: string; title: string; body: string };
 

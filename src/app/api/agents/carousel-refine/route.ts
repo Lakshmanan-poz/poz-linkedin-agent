@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
 import { getSetting } from "@/lib/db/settings";
+import { getOpenAIApiKey } from "@/lib/secrets";
 
 export type DesignParams = {
   accentColor: string;
@@ -26,7 +27,7 @@ export async function POST(req: NextRequest) {
     }
 
     const storedKey = await getSetting("openai_api_key");
-    const apiKey = process.env.OPENAI_API_KEY || storedKey;
+    const apiKey = await getOpenAIApiKey() || storedKey;
     if (!apiKey) {
       return NextResponse.json({ error: "OpenAI API key not configured" }, { status: 500 });
     }
