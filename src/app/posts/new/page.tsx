@@ -112,12 +112,16 @@ export default function NewPostPage() {
 
   /* ── Submit for review helper ──────────────────────────────────────── */
   const submitForReview = async (postId: number) => {
-    if (!currentUser) return;
-    await fetch(`/api/posts/${postId}/status`, {
+    if (!currentUser) throw new Error("Not logged in");
+    const res = await fetch(`/api/posts/${postId}/status`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status: "submitted", changed_by: currentUser.id }),
     });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error ?? "Failed to submit for review");
+    }
   };
 
   /* ── Generate + send to review in one step ─────────────────────────── */

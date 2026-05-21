@@ -687,12 +687,16 @@ async function submitForReview(params: {
   });
   if (!createRes.ok) throw new Error((await createRes.json()).error ?? "Failed to create post");
   const post = await createRes.json();
+  if (!post?.id) throw new Error("Post created but ID missing");
   const statusRes = await fetch(`/api/posts/${post.id}/status`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ status: "submitted", changed_by: params.userId }),
   });
-  if (!statusRes.ok) throw new Error("Failed to submit for review");
+  if (!statusRes.ok) {
+    const err = await statusRes.json().catch(() => ({}));
+    throw new Error(err.error ?? "Failed to submit for review");
+  }
 }
 
 /* ─── Manual Carousel Editor ─────────────────────────────────────────────────── */
