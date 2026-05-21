@@ -21,6 +21,7 @@ async function getReviewerIds(): Promise<number[]> {
 }
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  try {
   const { id } = await params;
   const body = await request.json();
   const { status: newStatus, changed_by, note } = body;
@@ -129,4 +130,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   }
 
   return NextResponse.json(updated);
+  } catch (err) {
+    return NextResponse.json({ error: err instanceof Error ? err.message : "Failed to update status" }, { status: 500 });
+  }
 }

@@ -36,6 +36,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Missing required fields: title, content, post_type, author_id" }, { status: 400 });
   }
 
-  const post = await createPost({ title, content, post_type, author_id, platform, ai_prompt, ai_model, carousel_slides, hashtags, scheduled_date });
-  return NextResponse.json(post, { status: 201 });
+  try {
+    const post = await createPost({ title, content, post_type, author_id, platform, ai_prompt, ai_model, carousel_slides, hashtags, scheduled_date });
+    return NextResponse.json(post, { status: 201 });
+  } catch (err) {
+    return NextResponse.json({ error: err instanceof Error ? err.message : "Failed to create post" }, { status: 500 });
+  }
 }
