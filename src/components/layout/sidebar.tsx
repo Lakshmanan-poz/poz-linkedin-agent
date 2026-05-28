@@ -35,6 +35,7 @@ const NAV_SECTIONS: NavSection[] = [
       { href: "/posts",         label: "My Posts",       icon: "FileText",       roles: ["employee"] },
       { href: "/posts",         label: "All Posts",      icon: "FileText",       roles: ["admin", "superadmin"] },
       { href: "/posts/new",     label: "Create Post",    icon: "PlusCircle",     roles: ["employee", "admin", "superadmin"] },
+      { href: "/topics",        label: "X Topics",       icon: "TrendingUp",     roles: ["employee", "admin", "superadmin"] },
       { href: "/content-status",label: "Content Status", icon: "ClipboardList",  roles: ["employee", "admin", "superadmin"] },
     ],
   },
@@ -55,7 +56,7 @@ const NAV_SECTIONS: NavSection[] = [
   },
 ];
 
-const EXACT_MATCH_ROUTES = new Set(["/dashboard", "/design", "/review", "/posts", "/posts/new", "/content-status"]);
+const EXACT_MATCH_ROUTES = new Set(["/dashboard", "/design", "/review", "/posts", "/posts/new", "/content-status", "/topics"]);
 
 /* ─── Icons ──────────────────────────────────────────────────────────────────── */
 const iconMap: Record<string, React.ReactNode> = {
@@ -71,6 +72,7 @@ const iconMap: Record<string, React.ReactNode> = {
   ClipboardCheck: <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="m9 14 2 2 4-4"/></svg>,
   ClipboardList:  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/></svg>,
   Palette:        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg>,
+  TrendingUp:     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>,
 };
 
 /* ─── Toggle icons ───────────────────────────────────────────────────────────── */
