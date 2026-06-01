@@ -46,14 +46,14 @@ USER INPUT (Prompt / Topic / Question / File Upload)
         (src/app/agent-catalog/page.tsx)
                 ↓
      ┌──────────────────────────────────────────────────────┐
-     │  PRIORITY CHECK 1 — Files uploading?                │
-     │  → warn user to wait, return early                  │
+     │  PRIORITY CHECK 1 — Files uploading?                 │
+     │  → warn user to wait, return early                   │
      │                                                      │
-     │  PRIORITY CHECK 2 — Ready documents attached?       │
-     │  readyDocIds.length > 0                             │
-     │  → POST /api/agents/rag (BYPASSES all other routing)│
-     │  → GPT-4o answers from document content only        │
-     │  → return (no intent detection, no skills)          │
+     │  PRIORITY CHECK 2 — Ready documents attached?        │
+     │  readyDocIds.length > 0                              │
+     │  → POST /api/agents/rag (BYPASSES all other routing) │
+     │  → GPT-4o answers from document content only         │
+     │  → return (no intent detection, no skills)           │
      └──────────────────────────────────────────────────────┘
                 ↓ (no docs attached)
      6-Layer Routing (checked in strict order — first match wins)
