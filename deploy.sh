@@ -52,29 +52,38 @@ IMAGE_WITH_DIGEST="${ECR_URI}@${IMAGE_DIGEST}"
 echo "  Image: ${IMAGE_WITH_DIGEST}"
 
 # ── 3. IAM role ───────────────────────────────────────────────────────────────
-echo "[3/7] IAM role..."
-TRUST='{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"Service":"lambda.amazonaws.com"},"Action":"sts:AssumeRole"}]}'
-aws iam create-role --role-name "${ROLE_NAME}" \
-  --assume-role-policy-document "${TRUST}" > /dev/null 2>&1 || true
-
-aws iam attach-role-policy --role-name "${ROLE_NAME}" \
-  --policy-arn arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole 2>/dev/null || true
-
-# Secrets Manager — read Claude key only
-aws iam put-role-policy --role-name "${ROLE_NAME}" \
-  --policy-name "ReadPOZClaudeKeyFromSecretsManager" \
-  --policy-document "{
-    \"Version\": \"2012-10-17\",
-    \"Statement\": [{
-      \"Effect\": \"Allow\",
-      \"Action\": [\"secretsmanager:GetSecretValue\", \"secretsmanager:DescribeSecret\"],
-      \"Resource\": \"arn:aws:secretsmanager:${REGION}:${ACCOUNT_ID}:secret:/poz-social-media-agent/claude-api-key*\"
-    }]
-  }"
-
+# Creates/updates the Lambda execution role and its Secrets Manager read policy.
+# Requires iam:* — this is a ONE-TIME bootstrap performed by an AWS admin.
+# Routine code deploys do not need it (the role already exists), so it is gated
+# behind BOOTSTRAP=1. Developers run `bash deploy.sh` (this step is skipped);
+# an admin runs `BOOTSTRAP=1 bash deploy.sh` on first deploy or role changes.
 ROLE_ARN="arn:aws:iam::${ACCOUNT_ID}:role/${ROLE_NAME}"
-echo "  Waiting 12s for IAM role to propagate..."
-sleep 12
+if [ "${BOOTSTRAP:-0}" = "1" ]; then
+  echo "[3/7] IAM role (bootstrap)..."
+  TRUST='{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"Service":"lambda.amazonaws.com"},"Action":"sts:AssumeRole"}]}'
+  aws iam create-role --role-name "${ROLE_NAME}" \
+    --assume-role-policy-document "${TRUST}" > /dev/null 2>&1 || true
+
+  aws iam attach-role-policy --role-name "${ROLE_NAME}" \
+    --policy-arn arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole 2>/dev/null || true
+
+  # Secrets Manager — read Claude key only
+  aws iam put-role-policy --role-name "${ROLE_NAME}" \
+    --policy-name "ReadPOZClaudeKeyFromSecretsManager" \
+    --policy-document "{
+      \"Version\": \"2012-10-17\",
+      \"Statement\": [{
+        \"Effect\": \"Allow\",
+        \"Action\": [\"secretsmanager:GetSecretValue\", \"secretsmanager:DescribeSecret\"],
+        \"Resource\": \"arn:aws:secretsmanager:${REGION}:${ACCOUNT_ID}:secret:/poz-social-media-agent/claude-api-key*\"
+      }]
+    }"
+
+  echo "  Waiting 12s for IAM role to propagate..."
+  sleep 12
+else
+  echo "[3/7] IAM role... skipped (admin one-time step; re-run with BOOTSTRAP=1 if the role or its policy must change)"
+fi
 
 # ── 4. Lambda function ────────────────────────────────────────────────────────
 echo "[4/7] Lambda function..."
@@ -179,6 +188,10 @@ aws lambda add-permission \
 LAMBDA_URL="https://${API_ID}.execute-api.${REGION}.amazonaws.com"
 
 # ── 6. Update Secrets Manager resource policy ─────────────────────────────────
+# Rewrites the secret's resource policy. Requires secretsmanager:* on the secret
+# — intentionally NOT granted to developers (the security model walls them off
+# from Secrets Manager). One-time admin bootstrap, gated behind BOOTSTRAP=1.
+if [ "${BOOTSTRAP:-0}" = "1" ]; then
 echo "[6/7] Granting Lambda role access to Secrets Manager..."
 aws secretsmanager put-resource-policy \
   --secret-id "/poz-social-media-agent/claude-api-key" \
@@ -209,6 +222,9 @@ aws secretsmanager put-resource-policy \
     ]
   }" \
   --region "${REGION}" > /dev/null && echo "  Secrets Manager policy updated"
+else
+  echo "[6/7] Secrets Manager resource policy... skipped (admin one-time step; re-run with BOOTSTRAP=1 if it must change)"
+fi
 
 # ── 7. Done ───────────────────────────────────────────────────────────────────
 echo "[7/7] Deploy complete!"
