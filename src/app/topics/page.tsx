@@ -113,38 +113,35 @@ function TopicCard({ item, index }: { item: XTopic; index: number }) {
         &ldquo;{item.quote}&rdquo;
       </p>
 
-      {/* Topic */}
-      <div className="flex items-start gap-2">
-        <span className="text-xs font-semibold text-muted-foreground tracking-widest mt-0.5 shrink-0">
-          TOPIC →
-        </span>
-        <p className="text-sm font-bold leading-snug">{item.topic}</p>
-      </div>
-
-      {/* Footer: timestamp + view on X link */}
-      <div className="flex items-center justify-between pt-2 border-t border-border/60">
-        {relTime ? (
-          <span
-            className="text-xs text-muted-foreground"
-            title={absTime}
-          >
-            🕐 {relTime}
-            {absTime && <span className="ml-1 opacity-60">· {absTime}</span>}
+      {/* Topic + date + direct X link */}
+      <div className="pt-1 border-t border-border/60 space-y-2">
+        <div className="flex items-start gap-2">
+          <span className="text-xs font-semibold text-muted-foreground tracking-widest mt-0.5 shrink-0">
+            TOPIC →
           </span>
-        ) : (
-          <span />
+          <p className="text-sm font-bold leading-snug">{item.topic}</p>
+        </div>
+
+        {/* Posted date */}
+        {absTime && (
+          <div className="flex items-center gap-1 text-xs text-muted-foreground">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+            <span>{absTime}</span>
+            {relTime && <span className="opacity-50">· {relTime}</span>}
+          </div>
         )}
 
+        {/* Direct X post link */}
         <a
           href={postUrl}
           target="_blank"
           rel="noopener noreferrer"
           onClick={e => e.stopPropagation()}
-          className="flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full transition-all hover:opacity-90"
-          style={{ background: cfg.color, color: "#fff" }}
+          className="flex items-center gap-1.5 text-xs font-semibold w-full px-3 py-1.5 rounded-lg transition-all hover:opacity-90 justify-center"
+          style={{ background: `${cfg.color}15`, color: cfg.color, border: `1px solid ${cfg.color}40` }}
         >
           <XIcon />
-          View post
+          View on X  ↗  {item.username}
         </a>
       </div>
     </div>
