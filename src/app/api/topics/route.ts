@@ -91,14 +91,34 @@ No markdown, no explanation, only the JSON array.`;
     const cleaned = raw.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
     const topics  = JSON.parse(cleaned);
 
-    // Enrich with any citation URLs from Grok's live search response
+    // Extract only valid X post URLs (must contain /status/ = specific post, not profile)
     const citations: string[] = data.citations ?? [];
+    const postCitations = citations.filter((u: string) =>
+      /x\.com\/\w+\/status\/\d+/.test(u)
+    );
+
     topics.forEach((t: Record<string, unknown>, i: number) => {
-      if (!t.post_url && citations[i]) t.post_url = citations[i];
-      if (!t.post_url) {
-        const handle = String(t.username ?? "").replace("@", "");
-        t.post_url = handle ? `https://x.com/${handle}` : null;
+      const handle = String(t.username ?? "").replace("@", "").toLowerCase();
+
+      // 1. Use post_url from Grok only if it's a real post link (has /status/)
+      const grokUrl = String(t.post_url ?? "");
+      if (/x\.com\/\w+\/status\/\d+/.test(grokUrl)) {
+        t.post_url = grokUrl;
+        return;
       }
+
+      // 2. Find a citation whose URL matches this author's handle
+      const matched = postCitations.find((u: string) =>
+        u.toLowerCase().includes(`/${handle}/status/`)
+      );
+      if (matched) { t.post_url = matched; return; }
+
+      // 3. Use any remaining citation by index
+      if (postCitations[i]) { t.post_url = postCitations[i]; return; }
+
+      // 4. Last resort: X search for exact quote text from this author
+      const query = encodeURIComponent(`from:${handle} ${String(t.quote ?? "").slice(0, 60)}`);
+      t.post_url = `https://x.com/search?q=${query}&f=live`;
     });
 
     // Strict server-side filter: drop any post older than 48 hours
