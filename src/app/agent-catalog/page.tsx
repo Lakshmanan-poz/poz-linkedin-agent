@@ -118,6 +118,8 @@ type TrendItem = {
   handle?: string;
   authority?: string;
   whatTheySaid?: string;
+  post_url?: string;
+  posted_at?: string;
 };
 
 type TrendPendingQ =
@@ -3669,6 +3671,27 @@ export default function AgentCatalogPage() {
                                     <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide shrink-0 mt-0.5">Topic →</span>
                                     <p className="text-sm font-semibold text-foreground leading-snug">{t.topic}</p>
                                   </div>
+                                  {/* Blue X post link */}
+                                  {t.post_url && (
+                                    <a
+                                      href={t.post_url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      onClick={e => e.stopPropagation()}
+                                      className="mt-2 flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-lg w-full justify-center transition-all hover:opacity-80"
+                                      style={{ background: "#3b82f615", color: "#3b82f6", border: "1px solid #3b82f640" }}
+                                    >
+                                      <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.741l7.73-8.835L1.254 2.25H8.08l4.213 5.567zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+                                      View post on X ↗
+                                    </a>
+                                  )}
+                                  {/* Date/time below the link */}
+                                  {t.posted_at && (
+                                    <div className="mt-1 flex items-center gap-1 text-[10px] text-muted-foreground justify-center">
+                                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+                                      <span>{new Date(t.posted_at).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit", hour12: true })}</span>
+                                    </div>
+                                  )}
                                 </div>
                               </div>
                               {/* Copy topic button — appears on hover */}

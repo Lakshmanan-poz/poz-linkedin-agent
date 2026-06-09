@@ -35,7 +35,6 @@ const NAV_SECTIONS: NavSection[] = [
       { href: "/posts",         label: "My Posts",       icon: "FileText",       roles: ["employee"] },
       { href: "/posts",         label: "All Posts",      icon: "FileText",       roles: ["admin", "superadmin"] },
       { href: "/posts/new",     label: "Create Post",    icon: "PlusCircle",     roles: ["employee", "admin", "superadmin"] },
-      { href: "/topics",        label: "X Topics",       icon: "TrendingUp",     roles: ["employee", "admin", "superadmin"] },
       { href: "/content-status",label: "Content Status", icon: "ClipboardList",  roles: ["employee", "admin", "superadmin"] },
     ],
   },
@@ -56,7 +55,7 @@ const NAV_SECTIONS: NavSection[] = [
   },
 ];
 
-const EXACT_MATCH_ROUTES = new Set(["/dashboard", "/design", "/review", "/posts", "/posts/new", "/content-status", "/topics"]);
+const EXACT_MATCH_ROUTES = new Set(["/dashboard", "/design", "/review", "/posts", "/posts/new", "/content-status"]);
 
 /* ─── Icons ──────────────────────────────────────────────────────────────────── */
 const iconMap: Record<string, React.ReactNode> = {

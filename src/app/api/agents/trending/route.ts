@@ -17,6 +17,8 @@ export type TrendItem = {
   handle?: string;
   authority?: string;
   whatTheySaid?: string;
+  post_url?: string;
+  posted_at?: string;
 };
 
 function getDayConfig(dayParam?: string | null) {
@@ -66,7 +68,9 @@ Return ONLY valid JSON — no markdown, no explanation:
       "authority": "Title at Company",
       "whatTheySaid": "Their actual post or close paraphrase (1-2 sentences)",
       "topic": "compelling LinkedIn topic headline (10-15 words)",
-      "summary": "1-2 sentences on why it matters to B2B leaders"
+      "summary": "1-2 sentences on why it matters to B2B leaders",
+      "post_url": "https://x.com/username/status/1234567890",
+      "posted_at": "2026-06-07T14:32:00Z"
     }
   ]
 }`;
@@ -100,20 +104,31 @@ Return ONLY valid JSON — no markdown, no explanation:
     if (!jsonMatch) throw new Error("No JSON in response");
 
     const parsed = JSON.parse(jsonMatch[0]) as {
-      trends: { handle?: string; authority?: string; whatTheySaid?: string; topic: string; summary: string }[];
+      trends: { handle?: string; authority?: string; whatTheySaid?: string; topic: string; summary: string; post_url?: string; posted_at?: string }[];
     };
     const items  = parsed.trends?.filter((t) => t.topic) ?? [];
     if (items.length < 3) throw new Error("Insufficient trends");
 
-    const trends: TrendItem[] = items.slice(0, count).map((t) => ({
-      day:          day.day as TrendItem["day"],
-      type:         day.type,
-      topic:        t.topic,
-      summary:      t.summary,
-      handle:       t.handle,
-      authority:    t.authority,
-      whatTheySaid: t.whatTheySaid,
-    }));
+    const trends: TrendItem[] = items.slice(0, count).map((t) => {
+      const handle = (t.handle ?? "").replace("@", "").toLowerCase();
+      // Build fallback post URL if Grok didn't return a valid one
+      let post_url = t.post_url ?? "";
+      if (!/x\.com\/\w+\/status\/\d+/.test(post_url) && handle) {
+        const q = encodeURIComponent(`from:${handle} ${(t.whatTheySaid ?? t.topic).slice(0, 60)}`);
+        post_url = `https://x.com/search?q=${q}&f=live`;
+      }
+      return {
+        day:          day.day as TrendItem["day"],
+        type:         day.type,
+        topic:        t.topic,
+        summary:      t.summary,
+        handle:       t.handle,
+        authority:    t.authority,
+        whatTheySaid: t.whatTheySaid,
+        post_url:     post_url || undefined,
+        posted_at:    t.posted_at,
+      };
+    });
 
     return NextResponse.json({ trends, day: day.day, contentType: day.type, source: "live" });
   } catch (err) {
