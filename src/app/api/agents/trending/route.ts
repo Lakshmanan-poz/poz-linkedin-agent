@@ -30,7 +30,14 @@ function getDayConfig(dayParam?: string | null) {
   return DAY_TYPES[idx >= 1 && idx <= 5 ? idx - 1 : 0];
 }
 
-// Lambda + API Gateway hard limit is 29s — keep well under it
+// In-memory cache — survives across requests within the same Lambda container.
+// x.ai x_search takes 13-23s per call. Caching means only the first call per
+// Lambda lifetime is slow; all subsequent calls return instantly from memory.
+type CacheEntry = { trends: TrendItem[]; day: string; contentType: string; fetchedAt: number };
+const cache = new Map<string, CacheEntry>();
+const CACHE_TTL_MS = 20 * 60 * 1000; // 20 minutes
+
+// Lambda + API Gateway hard limit is 29s
 export const maxDuration = 30;
 
 export async function GET(request: NextRequest) {
@@ -47,14 +54,23 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "XAI_API_KEY not set", trends: [] }, { status: 500 });
   }
 
-  // Cap at 5 per call — x_search + 20 topics = 30s+ timeout
-  // 5 topics = ~12-15s, safely under API Gateway 29s hard limit
-  const count = 5;
-
   const since = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
   const today = new Date().toISOString().split("T")[0];
+  const cacheKey = `${day.day}-${today}`;
 
-  // Focused short prompt — less tokens = faster response
+  // Return cached result if fresh (avoids re-running 13-23s x.ai call every request)
+  const cached = cache.get(cacheKey);
+  if (cached && Date.now() - cached.fetchedAt < CACHE_TTL_MS) {
+    return NextResponse.json({
+      trends: cached.trends,
+      day: cached.day,
+      contentType: cached.contentType,
+      source: "cache",
+    });
+  }
+
+  const count = 5;
+
   const prompt = `Search X/Twitter for the ${count} most liked and most replied posts from the last 2 days (${since} to ${today}) about: ${day.hint}
 
 Rules:
@@ -72,24 +88,18 @@ Return ONLY JSON, no markdown:
       "whatTheySaid": "Exact post text",
       "topic": "LinkedIn headline 10-12 words",
       "post_url": "https://x.com/username/status/POST_ID",
-      "posted_at": "2026-06-08T14:32:00Z"
+      "posted_at": "2026-06-09T14:32:00Z"
     }
   ]
 }`;
 
   try {
     const controller = new AbortController();
-    // x.ai budget: 12s. Lambda cold start (Docker) can take up to 10s.
-    // 10s cold start + 12s x.ai + 1s overhead = 23s — safely under the 25s
-    // client AbortController and the 29s API Gateway hard limit.
-    // Do NOT raise this — going over 25s sends the user the generic catch-block
-    // "Sorry, couldn't fetch trends" message instead of a meaningful error.
-    const timeoutId = setTimeout(() => controller.abort(), 16_000);
+    // x.ai x_search takes 13-23s regardless of model. Set 24s timeout so
+    // the route always returns a JSON response (not a hung connection) before
+    // the 26s client abort or the 29s API Gateway hard limit fires.
+    const timeoutId = setTimeout(() => controller.abort(), 24_000);
 
-    // xAI Responses API with x_search tool (Live Search).
-    // /v1/chat/completions search_parameters was retired (HTTP 410).
-    // x_search requires grok-4 family on /v1/responses.
-    // QA tested: grok-4-fast-reasoning returns real X posts in ~13.5s. ✓
     const res = await fetch("https://api.x.ai/v1/responses", {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${xaiKey}` },
@@ -103,8 +113,6 @@ Return ONLY JSON, no markdown:
             to_date:   today,
           },
         ],
-        // text.format is the JSON-mode flag on /v1/responses;
-        // response_format is chat/completions-only and 400s here.
         text:              { format: { type: "json_object" } },
         temperature:       0.1,
         max_output_tokens: 1500,
@@ -123,8 +131,7 @@ Return ONLY JSON, no markdown:
 
     const raw = await res.json();
 
-    // /v1/responses returns either a convenience `output_text` string, or an
-    // `output` array of message items whose `content[].text` holds the text.
+    // /v1/responses returns output array; find the assistant message content
     let text: string = typeof raw.output_text === "string" ? raw.output_text : "";
     if (!text && Array.isArray(raw.output)) {
       const parts: string[] = [];
@@ -135,24 +142,25 @@ Return ONLY JSON, no markdown:
           }
         }
       }
-      text = parts.join("\n");
+      text = parts.join("");
     }
 
-    // Real post URLs from x_search citations — entries may be plain URL strings
-    // or objects carrying a `url` field. Normalise both to strings.
-    const rawCitations: unknown[] = Array.isArray(raw.citations) ? raw.citations : [];
-    const citations: string[] = rawCitations
-      .map((c) =>
-        typeof c === "string"
-          ? c
-          : c && typeof (c as { url?: unknown }).url === "string"
-            ? (c as { url: string }).url
-            : ""
-      )
-      .filter(Boolean);
-    const postCitations = citations.filter((u: string) =>
-      /x\.com\/\w+\/status\/\d+/.test(u)
-    );
+    // Normalise citations from annotations inside the message content
+    const postCitations: string[] = [];
+    if (Array.isArray(raw.output)) {
+      for (const item of raw.output) {
+        if (Array.isArray(item?.content)) {
+          for (const c of item.content) {
+            if (Array.isArray(c?.annotations)) {
+              for (const a of c.annotations) {
+                const u = typeof a?.url === "string" ? a.url : "";
+                if (/x\.com\/\w+\/status\/\d+/.test(u)) postCitations.push(u);
+              }
+            }
+          }
+        }
+      }
+    }
 
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
@@ -173,18 +181,11 @@ Return ONLY JSON, no markdown:
 
     const trends: TrendItem[] = items.slice(0, count).map((t, i) => {
       const handle = (t.handle ?? "").replace("@", "").toLowerCase();
-
-      // Priority: real /status/ URL from Grok → citation match by handle → citation by index → profile
       let post_url = t.post_url ?? "";
       if (!/x\.com\/\w+\/status\/\d+/.test(post_url)) {
-        const matched = postCitations.find((u: string) =>
-          u.toLowerCase().includes(`/${handle}/status/`)
-        );
-        post_url = matched
-          ?? postCitations[i]
-          ?? (handle ? `https://x.com/${handle}` : "");
+        const matched = postCitations.find((u) => u.toLowerCase().includes(`/${handle}/status/`));
+        post_url = matched ?? postCitations[i] ?? (handle ? `https://x.com/${handle}` : "");
       }
-
       return {
         day:          day.day as TrendItem["day"],
         type:         day.type,
@@ -198,6 +199,9 @@ Return ONLY JSON, no markdown:
       };
     });
 
+    // Populate cache so subsequent requests within this Lambda container are instant
+    cache.set(cacheKey, { trends, day: day.day, contentType: day.type, fetchedAt: Date.now() });
+
     return NextResponse.json({ trends, day: day.day, contentType: day.type, source: "live" });
 
   } catch (err) {
@@ -205,7 +209,7 @@ Return ONLY JSON, no markdown:
     const isTimeout = msg.includes("abort") || msg.includes("timeout") || msg.includes("signal");
     return NextResponse.json({
       error: isTimeout
-        ? "X search timed out. Try again — usually faster on retry."
+        ? "X search timed out (x.ai x_search takes 13-23s). Please try again — second attempt is usually faster."
         : `Failed: ${msg}`,
       trends: [],
     });
