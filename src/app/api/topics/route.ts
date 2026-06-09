@@ -12,41 +12,54 @@ export async function GET() {
   const apiKey = process.env.XAI_API_KEY;
   if (!apiKey) return NextResponse.json({ error: "XAI_API_KEY not set" }, { status: 500 });
 
-  const now        = new Date();
-  const cutoff     = new Date(now.getTime() - 48 * 60 * 60 * 1000); // exactly 48 hours ago
-  const fromDate   = cutoff.toISOString().split("T")[0];
-  const toDate     = now.toISOString().split("T")[0];
-  const fromISO    = cutoff.toISOString();   // used for strict post-filter
+  const now      = new Date();
+  const cutoff   = new Date(now.getTime() - 48 * 60 * 60 * 1000);
+  const fromDate = cutoff.toISOString().split("T")[0];
+  const toDate   = now.toISOString().split("T")[0];
+  const fromISO  = cutoff.toISOString();
 
-  const prompt = `Search X (Twitter) for posts that are ACTIVELY TRENDING right now in the last 2 days (${fromDate} to ${toDate}).
+  const prompt = `Search X (Twitter) for posts that are TRENDING in the last 2 days (${fromDate} to ${toDate}).
 
-STRICT RULE: Only include posts published AFTER ${fromISO}. Reject anything older than 48 hours.
+STRICT RULES:
+- Only include posts published AFTER ${fromISO} (within last 48 hours)
+- Prioritize posts with the HIGHEST number of likes AND replies/comments — most engaged posts first
+- Include posts that are trending this week: celebrated, widely discussed, or going viral
+- Only credible voices: founders, investors, executives, researchers, journalists
+- Categories: ${CATEGORIES.join(", ")}
 
-Only include posts that are:
-- Trending or going viral on X (high engagement: replies, reposts, likes, or quotes)
-- From credible voices (founders, investors, executives, researchers, journalists)
-- Discussing a significant shift, announcement, or debate in one of these categories: ${CATEGORIES.join(", ")}
+CRITICAL — DO NOT MODIFY TOPIC TEXT:
+- The "topic" field must be the EXACT trending topic, hashtag, or headline as it appears on X
+- Do NOT summarize, rephrase, or shorten the topic
+- Copy the topic verbatim from the post or trending section
 
-Find at least 12 real trending X posts (2-3 per category). For each post return:
+Find at least 15 real trending X posts (2-3 per category), ranked by engagement (likes + comments).
+
+For each post return:
 - username: the @handle of the author
 - user_title: their role/title (e.g. "CEO at OpenAI")
 - quote: the exact post text (keep under 200 chars if long)
-- topic: a short punchy topic headline that captures the trending discussion (under 12 words)
+- topic: EXACT topic headline as it appears on X — do NOT change any words
 - category: one of the 5 categories above
-- post_url: the direct URL to the X post (format: https://x.com/username/status/tweet_id)
-- posted_at: the ISO 8601 timestamp of when the post was published (e.g. "2026-05-27T14:32:00Z")
+- post_url: direct URL to the X post (format: https://x.com/username/status/tweet_id)
+- posted_at: ISO 8601 timestamp of when the post was published (e.g. "2026-05-27T14:32:00Z")
+- like_count: number of likes on the post (integer)
+- reply_count: number of replies/comments on the post (integer)
 
-Return ONLY a raw JSON array like:
+Sort the results by engagement (like_count + reply_count) descending — highest first.
+
+Return ONLY a raw JSON array:
 [
   {
     "id": 1,
     "username": "@handle",
     "user_title": "Role at Company",
     "quote": "exact post text",
-    "topic": "Short trending topic headline",
+    "topic": "Exact Topic Text From X — no changes",
     "category": "Finance / PE / VC",
     "post_url": "https://x.com/handle/status/1234567890",
-    "posted_at": "2026-05-27T14:32:00Z"
+    "posted_at": "2026-05-27T14:32:00Z",
+    "like_count": 4200,
+    "reply_count": 380
   }
 ]
 
@@ -64,7 +77,7 @@ No markdown, no explanation, only the JSON array.`;
         messages: [
           {
             role: "system",
-            content: "You are a real-time X (Twitter) trend analyst. Your job is to identify posts that are TRENDING or GOING VIRAL on X right now — high engagement, credible authors, significant topics. Only surface genuinely trending content from the last 2 days. Return structured JSON only.",
+            content: "You are a real-time X (Twitter) trend analyst. Identify posts TRENDING or GOING VIRAL on X right now — prioritize by highest likes and comments. Return the EXACT topic text as it appears on X without any modification. Return structured JSON only.",
           },
           { role: "user", content: prompt },
         ],
@@ -73,7 +86,7 @@ No markdown, no explanation, only the JSON array.`;
           sources: [{ type: "x" }],
           from_date: fromDate,
           to_date: toDate,
-          max_search_results: 15,
+          max_search_results: 20,
         },
         temperature: 0.1,
       }),
@@ -87,11 +100,9 @@ No markdown, no explanation, only the JSON array.`;
     const data = await res.json();
     const raw  = data.choices?.[0]?.message?.content ?? "[]";
 
-    // Strip markdown code fences if present
     const cleaned = raw.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
     const topics  = JSON.parse(cleaned);
 
-    // Extract only valid X post URLs (must contain /status/ = specific post, not profile)
     const citations: string[] = data.citations ?? [];
     const postCitations = citations.filter((u: string) =>
       /x\.com\/\w+\/status\/\d+/.test(u)
@@ -100,36 +111,37 @@ No markdown, no explanation, only the JSON array.`;
     topics.forEach((t: Record<string, unknown>, i: number) => {
       const handle = String(t.username ?? "").replace("@", "").toLowerCase();
 
-      // 1. Use post_url from Grok only if it's a real post link (has /status/)
       const grokUrl = String(t.post_url ?? "");
       if (/x\.com\/\w+\/status\/\d+/.test(grokUrl)) {
         t.post_url = grokUrl;
         return;
       }
 
-      // 2. Find a citation whose URL matches this author's handle
       const matched = postCitations.find((u: string) =>
         u.toLowerCase().includes(`/${handle}/status/`)
       );
       if (matched) { t.post_url = matched; return; }
 
-      // 3. Use any remaining citation by index
       if (postCitations[i]) { t.post_url = postCitations[i]; return; }
 
-      // 4. Last resort: X search for exact quote text from this author
       const query = encodeURIComponent(`from:${handle} ${String(t.quote ?? "").slice(0, 60)}`);
       t.post_url = `https://x.com/search?q=${query}&f=live`;
     });
 
-    // Strict server-side filter: drop any post older than 48 hours
     const cutoffMs = cutoff.getTime();
     const filtered = topics.filter((t: Record<string, unknown>) => {
-      if (!t.posted_at) return true; // keep if no timestamp (can't verify)
+      if (!t.posted_at) return true;
       const ts = new Date(String(t.posted_at)).getTime();
       return isNaN(ts) || ts >= cutoffMs;
     });
 
-    // Re-index ids after filter
+    // Sort by engagement (like_count + reply_count) descending
+    filtered.sort((a: Record<string, unknown>, b: Record<string, unknown>) => {
+      const engA = (Number(a.like_count) || 0) + (Number(a.reply_count) || 0);
+      const engB = (Number(b.like_count) || 0) + (Number(b.reply_count) || 0);
+      return engB - engA;
+    });
+
     filtered.forEach((t: Record<string, unknown>, i: number) => { t.id = i + 1; });
 
     return NextResponse.json({ topics: filtered, from_date: fromDate, to_date: toDate });

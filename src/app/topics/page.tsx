@@ -12,6 +12,8 @@ interface XTopic {
   category: string;
   post_url?: string;
   posted_at?: string;
+  like_count?: number;
+  reply_count?: number;
 }
 
 /* ─── Category config ────────────────────────────────────────────────────────── */
@@ -113,7 +115,7 @@ function TopicCard({ item, index }: { item: XTopic; index: number }) {
         &ldquo;{item.quote}&rdquo;
       </p>
 
-      {/* Topic + date + direct X link */}
+      {/* Topic + blue link + date */}
       <div className="pt-1 border-t border-border/60 space-y-2">
         <div className="flex items-start gap-2">
           <span className="text-xs font-semibold text-muted-foreground tracking-widest mt-0.5 shrink-0">
@@ -122,27 +124,45 @@ function TopicCard({ item, index }: { item: XTopic; index: number }) {
           <p className="text-sm font-bold leading-snug">{item.topic}</p>
         </div>
 
-        {/* Posted date */}
-        {absTime && (
-          <div className="flex items-center gap-1 text-xs text-muted-foreground">
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
-            <span>{absTime}</span>
-            {relTime && <span className="opacity-50">· {relTime}</span>}
+        {/* Engagement counts */}
+        {(item.like_count || item.reply_count) ? (
+          <div className="flex items-center gap-3 text-xs text-muted-foreground">
+            {item.like_count ? (
+              <span className="flex items-center gap-1">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+                {item.like_count.toLocaleString()}
+              </span>
+            ) : null}
+            {item.reply_count ? (
+              <span className="flex items-center gap-1">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                {item.reply_count.toLocaleString()}
+              </span>
+            ) : null}
           </div>
-        )}
+        ) : null}
 
-        {/* Direct X post link */}
+        {/* Direct X post link — always blue */}
         <a
           href={postUrl}
           target="_blank"
           rel="noopener noreferrer"
           onClick={e => e.stopPropagation()}
           className="flex items-center gap-1.5 text-xs font-semibold w-full px-3 py-1.5 rounded-lg transition-all hover:opacity-90 justify-center"
-          style={{ background: `${cfg.color}15`, color: cfg.color, border: `1px solid ${cfg.color}40` }}
+          style={{ background: "#3b82f615", color: "#3b82f6", border: "1px solid #3b82f640" }}
         >
           <XIcon />
           View on X  ↗  {item.username}
         </a>
+
+        {/* Posted date — below the link */}
+        {absTime && (
+          <div className="flex items-center gap-1 text-xs text-muted-foreground justify-center">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+            <span>{absTime}</span>
+            {relTime && <span className="opacity-50">· {relTime}</span>}
+          </div>
+        )}
       </div>
     </div>
   );
