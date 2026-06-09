@@ -3325,10 +3325,10 @@ export default function AgentCatalogPage() {
     ]);
 
     try {
-      // Always fetch 20 (max) to maximise deduplication pool
+      // Fetch 5 per call — API Gateway 29s hard limit means 20 topics always times out
       const ctrl = new AbortController();
-      const tid  = setTimeout(() => ctrl.abort(), 28_000);
-      const res  = await fetch(`/api/agents/trending?day=${today}&count=20`, { signal: ctrl.signal });
+      const tid  = setTimeout(() => ctrl.abort(), 25_000);
+      const res  = await fetch(`/api/agents/trending?day=${today}`, { signal: ctrl.signal });
       clearTimeout(tid);
       const data = await res.json();
       const fresh: TrendItem[]  = Array.isArray(data.trends) ? data.trends : [];
