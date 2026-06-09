@@ -1360,7 +1360,7 @@ Return JSON only:
         };
 
         const callGrokLive = async (extraNote?: string): Promise<XAIResponsesApi> => {
-          const model = process.env.XAI_MODEL ?? "grok-4.20-multi-agent";
+          const model = process.env.XAI_MODEL ?? "grok-4-fast-reasoning";
           const ctrl = new AbortController();
           const timer = setTimeout(() => ctrl.abort(), 10_000);
           try {

@@ -84,7 +84,7 @@ Return ONLY JSON, no markdown:
     // client AbortController and the 29s API Gateway hard limit.
     // Do NOT raise this — going over 25s sends the user the generic catch-block
     // "Sorry, couldn't fetch trends" message instead of a meaningful error.
-    const timeoutId = setTimeout(() => controller.abort(), 12_000);
+    const timeoutId = setTimeout(() => controller.abort(), 16_000);
 
     // xAI Responses API with x_search tool (Live Search).
     // /v1/chat/completions search_parameters was retired (HTTP 410).
@@ -95,7 +95,7 @@ Return ONLY JSON, no markdown:
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${xaiKey}` },
       body: JSON.stringify({
-        model: process.env.XAI_MODEL ?? "grok-4.20-multi-agent",
+        model: process.env.XAI_MODEL ?? "grok-4-fast-reasoning",
         input: [{ role: "user", content: prompt }],
         tools: [
           {
