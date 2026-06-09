@@ -79,29 +79,33 @@ Return ONLY JSON, no markdown:
 
   try {
     const controller = new AbortController();
-    // 20s timeout — leaves 9s buffer for Lambda cold start + API Gateway overhead
-    const timeoutId = setTimeout(() => controller.abort(), 20_000);
+    // x.ai budget: 12s. Lambda cold start (Docker) can take up to 10s.
+    // 10s cold start + 12s x.ai + 1s overhead = 23s — safely under the 25s
+    // client AbortController and the 29s API Gateway hard limit.
+    // Do NOT raise this — going over 25s sends the user the generic catch-block
+    // "Sorry, couldn't fetch trends" message instead of a meaningful error.
+    const timeoutId = setTimeout(() => controller.abort(), 12_000);
 
-    // xAI Agent Tools API (/v1/responses). The older Live Search API
-    // (`search_parameters` on /v1/chat/completions) was retired by xAI and now
-    // returns HTTP 410. X/Twitter must be queried via the server-side `x_search`
-    // tool, which only the grok-4 family supports. Mirrors src/lib/agents/generate.ts.
+    // xAI Responses API with x_search tool (Live Search).
+    // /v1/chat/completions search_parameters was retired (HTTP 410).
+    // x_search requires grok-4 family on /v1/responses.
+    // Use grok-4 (base, non-reasoning) — grok-4-fast-reasoning does chain-of-thought
+    // which adds 10-20s of latency and blows the Lambda/API-Gateway budget.
     const res = await fetch("https://api.x.ai/v1/responses", {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${xaiKey}` },
       body: JSON.stringify({
-        model: process.env.XAI_MODEL || "grok-4-fast-reasoning",
+        model: process.env.XAI_MODEL ?? "grok-4",
         input: [{ role: "user", content: prompt }],
-        // x_search queries X live at request time and emits citations (real post URLs).
         tools: [
           {
             type:      "x_search",
-            from_date: since,   // YYYY-MM-DD
-            to_date:   today,   // YYYY-MM-DD
+            from_date: since,
+            to_date:   today,
           },
         ],
-        // On /v1/responses the JSON-mode flag is `text.format` — `response_format`
-        // is a /v1/chat/completions-only field and 400s here.
+        // text.format is the JSON-mode flag on /v1/responses;
+        // response_format is chat/completions-only and 400s here.
         text:              { format: { type: "json_object" } },
         temperature:       0.1,
         max_output_tokens: 1500,

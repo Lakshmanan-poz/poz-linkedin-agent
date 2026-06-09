@@ -3325,11 +3325,16 @@ export default function AgentCatalogPage() {
     ]);
 
     try {
-      // Fetch 5 per call — API Gateway 29s hard limit means 20 topics always times out
+      // 26s client timeout — leaves a 3s buffer below the 29s API Gateway hard limit.
+      // The route's internal x.ai timeout is 12s; even with a 10s Lambda cold start
+      // the route always responds in ≤23s, well under this limit.
       const ctrl = new AbortController();
-      const tid  = setTimeout(() => ctrl.abort(), 25_000);
+      const tid  = setTimeout(() => ctrl.abort(), 26_000);
       const res  = await fetch(`/api/agents/trending?day=${today}`, { signal: ctrl.signal });
       clearTimeout(tid);
+
+      // If API Gateway killed the Lambda (504), res.json() throws — fall to catch.
+      // If Lambda returned an error JSON, handle it below.
       const data = await res.json();
       const fresh: TrendItem[]  = Array.isArray(data.trends) ? data.trends : [];
       const contentType: string = data.contentType ?? fresh[0]?.type ?? "content";
@@ -3383,10 +3388,14 @@ export default function AgentCatalogPage() {
           : m
       ));
       setPendingQ({ type: "trend-topic-pick", trends: shown, seenTopics: newSeenTopics });
-    } catch {
+    } catch (err) {
+      const isAbort = err instanceof Error && (err.name === "AbortError" || err.message.includes("abort"));
+      const msg = isAbort
+        ? "Request timed out waiting for X trends. Please try again — it's usually faster on the second attempt."
+        : "Couldn't connect to the trends service. Please try again or type your own topic.";
       setMessages((prev) => prev.map((m) =>
         m.id === agentId
-          ? { ...m, generating: false, text: "Sorry, couldn't fetch trends right now. Try again or type your own topic." }
+          ? { ...m, generating: false, text: msg }
           : m
       ));
     }
