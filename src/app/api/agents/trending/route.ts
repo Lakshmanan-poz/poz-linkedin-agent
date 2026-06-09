@@ -111,11 +111,10 @@ Return ONLY valid JSON — no markdown, no explanation:
 
     const trends: TrendItem[] = items.slice(0, count).map((t) => {
       const handle = (t.handle ?? "").replace("@", "").toLowerCase();
-      // Build fallback post URL if Grok didn't return a valid one
+      // Use Grok's post URL only if it's a real post (has /status/), else link to profile
       let post_url = t.post_url ?? "";
-      if (!/x\.com\/\w+\/status\/\d+/.test(post_url) && handle) {
-        const q = encodeURIComponent(`from:${handle} ${(t.whatTheySaid ?? t.topic).slice(0, 60)}`);
-        post_url = `https://x.com/search?q=${q}&f=live`;
+      if (!/x\.com\/\w+\/status\/\d+/.test(post_url)) {
+        post_url = handle ? `https://x.com/${handle}` : "";
       }
       return {
         day:          day.day as TrendItem["day"],
@@ -206,18 +205,14 @@ const POOL: Record<string, Array<{ handle: string; authority: string; whatTheySa
 
 function getFallback(day: typeof DAY_TYPES[0], count: number): TrendItem[] {
   const pool = POOL[day.type] ?? POOL["Thought Leadership"];
-  return pool.slice(0, count).map((t) => {
-    const username = t.handle.replace("@", "");
-    const query = encodeURIComponent(`from:${username} ${t.whatTheySaid.slice(0, 60)}`);
-    return {
-      day:          day.day as TrendItem["day"],
-      type:         day.type,
-      topic:        t.topic,
-      summary:      t.summary,
-      handle:       t.handle,
-      authority:    t.authority,
-      whatTheySaid: t.whatTheySaid,
-      post_url:     `https://x.com/search?q=${query}&f=live`,
-    };
-  });
+  return pool.slice(0, count).map((t) => ({
+    day:          day.day as TrendItem["day"],
+    type:         day.type,
+    topic:        t.topic,
+    summary:      t.summary,
+    handle:       t.handle,
+    authority:    t.authority,
+    whatTheySaid: t.whatTheySaid,
+    post_url:     `https://x.com/${t.handle.replace("@", "")}`,
+  }));
 }
