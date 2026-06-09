@@ -206,13 +206,18 @@ const POOL: Record<string, Array<{ handle: string; authority: string; whatTheySa
 
 function getFallback(day: typeof DAY_TYPES[0], count: number): TrendItem[] {
   const pool = POOL[day.type] ?? POOL["Thought Leadership"];
-  return pool.slice(0, count).map((t) => ({
-    day:          day.day as TrendItem["day"],
-    type:         day.type,
-    topic:        t.topic,
-    summary:      t.summary,
-    handle:       t.handle,
-    authority:    t.authority,
-    whatTheySaid: t.whatTheySaid,
-  }));
+  return pool.slice(0, count).map((t) => {
+    const username = t.handle.replace("@", "");
+    const query = encodeURIComponent(`from:${username} ${t.whatTheySaid.slice(0, 60)}`);
+    return {
+      day:          day.day as TrendItem["day"],
+      type:         day.type,
+      topic:        t.topic,
+      summary:      t.summary,
+      handle:       t.handle,
+      authority:    t.authority,
+      whatTheySaid: t.whatTheySaid,
+      post_url:     `https://x.com/search?q=${query}&f=live`,
+    };
+  });
 }
