@@ -2445,14 +2445,7 @@ export default function AgentCatalogPage() {
         const isMoreRequest = /^more$|^(?:show\s+)?more\s+topics?|^\d+\s+more$/i.test(text.trim())
                            || (/\bmore\b/.test(lower) && text.trim().length <= 15);
         if (isMoreRequest) {
-          setMessages((prev) => [...prev, {
-            id: uuid(), role: "agent",
-            text: "How many more topics would you like to see?",
-            quickReplies: [
-              { label: "3", value: "3" }, { label: "5", value: "5" }, { label: "8", value: "8" },
-            ],
-          }]);
-          setPendingQ({ type: "trend-more", seenTopics: pq.seenTopics });
+          await fetchAndShowTrends(3, pq.seenTopics);
           return;
         }
         setMessages((prev) => [...prev, {
@@ -2510,7 +2503,7 @@ export default function AgentCatalogPage() {
       setMessages((prev) => [...prev, { id: uuid(), role: "user", text }]);
       setPendingQ(null);
       const count = extractSlideCount(text) ?? parseInt(text, 10);
-      const n = (!isNaN(count) && count > 0 && count <= 20) ? count : 5;
+      const n = (!isNaN(count) && count > 0 && count <= 20) ? count : 3;
       await fetchAndShowTrends(n, pq.seenTopics);
       return;
     }
@@ -2709,7 +2702,7 @@ export default function AgentCatalogPage() {
     if (/trend|trending|today.*topic|topic.*today|what.*trending|show.*trend|latest.*topic|current.*topic|popular.*topic|ai.*update|ai.*news|what.*hot|what.*popular/i.test(text)) {
       setMessages((prev) => [...prev, { id: uuid(), role: "user", text }]);
       const countMatch = text.match(/\b(\d+)\b/);
-      const n = countMatch ? Math.min(parseInt(countMatch[1], 10), 20) : 10;
+      const n = countMatch ? Math.min(parseInt(countMatch[1], 10), 20) : 3;
       await fetchAndShowTrends(n, []);
       return;
     }
@@ -2824,7 +2817,7 @@ export default function AgentCatalogPage() {
 
       if (routed.action === "trending") {
         setMessages((prev) => prev.filter((m) => m.id !== agentId));
-        await fetchAndShowTrends(routed.count ?? 5, []);
+        await fetchAndShowTrends(routed.count ?? 3, []);
         return;
       }
 
@@ -3032,7 +3025,7 @@ export default function AgentCatalogPage() {
         .filter((m) => m.trendList && m.trendList.length > 0)
         .flatMap((m) => (m.trendList ?? []).map((t) => t.topic));
       const count = extractSlideCount(raw) ?? parseInt(raw, 10);
-      const n = (!isNaN(count) && count > 0 && count <= 20) ? count : 5;
+      const n = (!isNaN(count) && count > 0 && count <= 20) ? count : 3;
       setMessages([...base, { id: uuid(), role: "user", text: raw }]);
       await fetchAndShowTrends(n, seenTopics);
       return;
@@ -3101,14 +3094,7 @@ export default function AgentCatalogPage() {
                          || (/\bmore\b/.test(lower) && raw.trim().length <= 15);
       if (isMoreRequest) {
         setMessages([...base, { id: uuid(), role: "user", text: raw }]);
-        setMessages((prev) => [...prev, {
-          id: uuid(), role: "agent" as const, generating: false,
-          text: "How many more topics would you like to see?",
-          quickReplies: [
-            { label: "3", value: "3" }, { label: "5", value: "5" }, { label: "8", value: "8" },
-          ],
-        }]);
-        setPendingQ({ type: "trend-more", seenTopics });
+        await fetchAndShowTrends(3, seenTopics);
         return;
       }
       // No match found — fall through to normal flow so user can type a new intent
@@ -3118,7 +3104,7 @@ export default function AgentCatalogPage() {
     if (/trend|trending|today.*topic|topic.*today|what.*trending|show.*trend|latest.*topic|current.*topic|popular.*topic/i.test(text)) {
       setMessages([...base, { id: uuid(), role: "user", text }]);
       const countMatch = text.match(/\b(\d+)\b/);
-      const n = countMatch ? Math.min(parseInt(countMatch[1], 10), 20) : 10;
+      const n = countMatch ? Math.min(parseInt(countMatch[1], 10), 20) : 3;
       await fetchAndShowTrends(n, []);
       return;
     }

@@ -69,7 +69,7 @@ export async function GET(request: NextRequest) {
     });
   }
 
-  const count = 5;
+  const count = 3;
 
   const prompt = `Search X/Twitter for the ${count} most liked and most replied posts from the last 2 days (${since} to ${today}) about: ${day.hint}
 
