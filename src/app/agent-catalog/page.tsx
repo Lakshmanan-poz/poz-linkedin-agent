@@ -3327,12 +3327,23 @@ export default function AgentCatalogPage() {
     try {
       // Always fetch 20 (max) to maximise deduplication pool
       const ctrl = new AbortController();
-      const tid  = setTimeout(() => ctrl.abort(), 13_000);
+      const tid  = setTimeout(() => ctrl.abort(), 28_000);
       const res  = await fetch(`/api/agents/trending?day=${today}&count=20`, { signal: ctrl.signal });
       clearTimeout(tid);
       const data = await res.json();
       const fresh: TrendItem[]  = Array.isArray(data.trends) ? data.trends : [];
       const contentType: string = data.contentType ?? fresh[0]?.type ?? "content";
+
+      // Show API error if no topics returned
+      if (fresh.length === 0 && data.error) {
+        setMessages((prev) => prev.map((m) =>
+          m.id === agentId
+            ? { ...m, generating: false, text: `⚠️ ${data.error}\n\nPlease try again in a moment.` }
+            : m
+        ));
+        setPendingQ(null);
+        return;
+      }
 
       // Deduplicate against everything the user has already seen
       const seenSet   = new Set(seenTopics);
@@ -3342,7 +3353,7 @@ export default function AgentCatalogPage() {
       if (shown.length === 0) {
         setMessages((prev) => prev.map((m) =>
           m.id === agentId
-            ? { ...m, generating: false, text: "No more new topics available right now. Try again later or type your own topic below." }
+            ? { ...m, generating: false, text: "No more new topics available right now. Try again in a moment." }
             : m
         ));
         setPendingQ(null);
