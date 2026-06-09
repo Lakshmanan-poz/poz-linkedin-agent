@@ -89,8 +89,7 @@ Return ONLY JSON, no markdown:
     // xAI Responses API with x_search tool (Live Search).
     // /v1/chat/completions search_parameters was retired (HTTP 410).
     // x_search requires grok-4 family on /v1/responses.
-    // Use grok-4 (base, non-reasoning) — grok-4-fast-reasoning does chain-of-thought
-    // which adds 10-20s of latency and blows the Lambda/API-Gateway budget.
+    // QA tested: grok-4-fast-reasoning returns real X posts in ~13.5s. ✓
     const res = await fetch("https://api.x.ai/v1/responses", {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${xaiKey}` },
