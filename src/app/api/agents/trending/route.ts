@@ -95,7 +95,7 @@ Return ONLY JSON, no markdown:
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${xaiKey}` },
       body: JSON.stringify({
-        model: process.env.XAI_MODEL ?? "grok-4",
+        model: process.env.XAI_MODEL ?? "grok-4.20-multi-agent",
         input: [{ role: "user", content: prompt }],
         tools: [
           {
