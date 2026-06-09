@@ -1386,8 +1386,9 @@ Return JSON only:
                     to_date:   fmt(now),
                   },
                 ],
-                // Force JSON so downstream parsing is deterministic.
-                response_format: { type: "json_object" },
+                // Force JSON so downstream parsing is deterministic. On /v1/responses
+                // this is `text.format`; `response_format` is chat/completions-only (400s here).
+                text: { format: { type: "json_object" } },
                 temperature: 0.3,
                 max_output_tokens: 4000,
               }),

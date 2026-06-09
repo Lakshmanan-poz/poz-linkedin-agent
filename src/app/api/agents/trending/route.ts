@@ -82,15 +82,29 @@ Return ONLY JSON, no markdown:
     // 20s timeout — leaves 9s buffer for Lambda cold start + API Gateway overhead
     const timeoutId = setTimeout(() => controller.abort(), 20_000);
 
-    const res = await fetch("https://api.x.ai/v1/chat/completions", {
+    // xAI Agent Tools API (/v1/responses). The older Live Search API
+    // (`search_parameters` on /v1/chat/completions) was retired by xAI and now
+    // returns HTTP 410. X/Twitter must be queried via the server-side `x_search`
+    // tool, which only the grok-4 family supports. Mirrors src/lib/agents/generate.ts.
+    const res = await fetch("https://api.x.ai/v1/responses", {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${xaiKey}` },
       body: JSON.stringify({
-        model:       "grok-3-fast",   // faster variant — same live search, 2-3x quicker
-        messages:    [{ role: "user", content: prompt }],
-        tools:       [{ type: "x_search" }],
-        temperature: 0.1,
-        max_tokens:  1500,            // reduced — 5 topics needs less tokens
+        model: process.env.XAI_MODEL || "grok-4-fast-reasoning",
+        input: [{ role: "user", content: prompt }],
+        // x_search queries X live at request time and emits citations (real post URLs).
+        tools: [
+          {
+            type:      "x_search",
+            from_date: since,   // YYYY-MM-DD
+            to_date:   today,   // YYYY-MM-DD
+          },
+        ],
+        // On /v1/responses the JSON-mode flag is `text.format` — `response_format`
+        // is a /v1/chat/completions-only field and 400s here.
+        text:              { format: { type: "json_object" } },
+        temperature:       0.1,
+        max_output_tokens: 1500,
       }),
       signal: controller.signal,
     });
@@ -104,11 +118,35 @@ Return ONLY JSON, no markdown:
       );
     }
 
-    const raw  = await res.json();
-    const text: string = raw.choices?.[0]?.message?.content ?? "";
+    const raw = await res.json();
 
-    // Real post URLs from Grok citations
-    const citations: string[] = raw.citations ?? [];
+    // /v1/responses returns either a convenience `output_text` string, or an
+    // `output` array of message items whose `content[].text` holds the text.
+    let text: string = typeof raw.output_text === "string" ? raw.output_text : "";
+    if (!text && Array.isArray(raw.output)) {
+      const parts: string[] = [];
+      for (const item of raw.output) {
+        if (Array.isArray(item?.content)) {
+          for (const c of item.content) {
+            if (typeof c?.text === "string") parts.push(c.text);
+          }
+        }
+      }
+      text = parts.join("\n");
+    }
+
+    // Real post URLs from x_search citations — entries may be plain URL strings
+    // or objects carrying a `url` field. Normalise both to strings.
+    const rawCitations: unknown[] = Array.isArray(raw.citations) ? raw.citations : [];
+    const citations: string[] = rawCitations
+      .map((c) =>
+        typeof c === "string"
+          ? c
+          : c && typeof (c as { url?: unknown }).url === "string"
+            ? (c as { url: string }).url
+            : ""
+      )
+      .filter(Boolean);
     const postCitations = citations.filter((u: string) =>
       /x\.com\/\w+\/status\/\d+/.test(u)
     );
