@@ -298,7 +298,7 @@ export default function ReviewPage() {
                                   <Button
                                     size="sm"
                                     disabled={transitioning === post.id}
-                                    className="bg-blue-600 hover:bg-blue-700 text-white ml-auto"
+                                    className="ml-auto"
                                     onClick={() => handleTransition(post.id, post.status, "approved_for_design")}
                                   >
                                     {transitioning === post.id ? "Approving…" : "✓ Approve — Send to Designer"}

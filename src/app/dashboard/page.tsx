@@ -519,7 +519,8 @@ function AdminReviewQueue() {
                     <button
                       onClick={() => handleApproveForDesign(post.id)}
                       disabled={actionId === post.id}
-                      className="flex-1 py-1.5 rounded-lg text-xs font-semibold bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                      className="flex-1 py-1.5 rounded-lg text-xs font-semibold disabled:opacity-50 transition-colors hover:opacity-90"
+                      style={{ background: "var(--primary)", color: "var(--primary-foreground)" }}
                     >
                       {actionId === post.id ? "Approving…" : "Approve & Ready to Post"}
                     </button>
@@ -731,7 +732,7 @@ function AdminDashboard() {
                   <span className="w-8 shrink-0" />
                   <span className="flex-1 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Member</span>
                   <div className="flex items-center gap-4 shrink-0">
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-[#00AAEC] w-14 text-center">Created</span>
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--brand)] w-14 text-center">Created</span>
                     <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-500 w-16 text-center">Published</span>
                   </div>
                 </div>
@@ -1186,7 +1187,8 @@ function DesignerDashboard() {
                       <button
                         onClick={() => takePost(post)}
                         disabled={acting === post.id}
-                        className="flex-1 py-1.5 rounded-lg text-xs font-semibold bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                        className="flex-1 py-1.5 rounded-lg text-xs font-semibold disabled:opacity-50 transition-colors hover:opacity-90"
+                        style={{ background: "var(--primary)", color: "var(--primary-foreground)" }}
                       >
                         {acting === post.id ? "Taking…" : "Take Post"}
                       </button>

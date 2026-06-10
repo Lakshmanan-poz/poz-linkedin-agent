@@ -179,10 +179,7 @@ export default function LoginPage() {
                     onChange={(e) => setForm({ ...form, identifier: e.target.value })}
                     required
                     autoComplete="username"
-                    className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-input bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:border-transparent transition-all"
-                    style={{ "--tw-ring-color": "#00AAEC55" } as React.CSSProperties}
-                    onFocus={(e) => (e.target.style.borderColor = "#00AAEC")}
-                    onBlur={(e) => (e.target.style.borderColor = "")}
+                    className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-input bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/40 focus:border-ring transition-all"
                   />
                 </div>
               </div>
@@ -207,9 +204,7 @@ export default function LoginPage() {
                     onChange={(e) => setForm({ ...form, password: e.target.value })}
                     required
                     autoComplete="current-password"
-                    className="w-full pl-10 pr-11 py-2.5 rounded-lg border border-input bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:border-transparent transition-all"
-                    onFocus={(e) => (e.target.style.borderColor = "#00AAEC")}
-                    onBlur={(e) => (e.target.style.borderColor = "")}
+                    className="w-full pl-10 pr-11 py-2.5 rounded-lg border border-input bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/40 focus:border-ring transition-all"
                   />
                   <button
                     type="button"
@@ -248,12 +243,11 @@ export default function LoginPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-2.5 px-4 rounded-lg text-sm font-semibold text-white transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                className="w-full py-2.5 px-4 rounded-lg text-sm font-semibold transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-ring/40 focus:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed active:scale-[0.99] hover:opacity-90"
                 style={{
-                  background: loading ? "#00AAEC99" : "linear-gradient(135deg, #0099d6, #00AAEC)",
-                  boxShadow: loading ? "none" : "0 4px 18px rgba(0,170,236,0.40)",
-                  focusRingColor: "#00AAEC",
-                } as React.CSSProperties}
+                  background: "var(--primary)",
+                  color: "var(--primary-foreground)",
+                }}
               >
                 {loading ? (
                   <span className="flex items-center justify-center gap-2">

@@ -16,9 +16,9 @@ const roleLabels: Record<string, string> = {
 
 const roleBadgeClass: Record<string, string> = {
   employee: "bg-muted text-muted-foreground",
-  admin: "bg-blue-100 text-blue-700",
-  designer: "bg-purple-100 text-purple-700",
-  superadmin: "bg-red-100 text-red-700",
+  admin: "bg-accent text-accent-foreground border border-border",
+  designer: "bg-accent text-accent-foreground border border-border",
+  superadmin: "bg-primary text-primary-foreground",
 };
 
 function SunIcon() {
@@ -46,7 +46,7 @@ function ThemeToggle() {
     <button
       onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
       title="Toggle theme"
-      className="w-8 h-8 rounded-lg border border-border flex items-center justify-center text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+      className="w-8 h-8 rounded-lg border border-border flex items-center justify-center text-muted-foreground hover:bg-accent hover:text-foreground transition-all duration-150"
     >
       {mounted ? (theme === "dark" ? <SunIcon /> : <MoonIcon />) : <MoonIcon />}
     </button>
@@ -64,7 +64,7 @@ export function Header() {
   };
 
   return (
-    <header className="h-14 border-b bg-card flex items-center justify-between px-6 shrink-0">
+    <header className="h-14 shrink-0 flex items-center justify-between px-6 bg-background" style={{ borderBottom: "1px solid var(--border)" }}>
       <div />
       <div className="flex items-center gap-2">
         {currentUser && (

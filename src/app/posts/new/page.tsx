@@ -516,7 +516,7 @@ export default function NewPostPage() {
                 <Button
                   onClick={() => handleManualSave(true)}
                   disabled={saving || reviewing || !manualTitle.trim() || !manualContent.trim()}
-                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                  className="bg-primary text-primary-foreground hover:bg-primary/90"
                 >
                   {reviewing ? "Submitting..." : "Send to Review"}
                 </Button>
@@ -631,7 +631,7 @@ export default function NewPostPage() {
               <Button
                 onClick={() => handleCarouselSave(true)}
                 disabled={saving || reviewing || !manualTitle.trim()}
-                className="bg-blue-600 hover:bg-blue-700 text-white"
+                className="bg-primary text-primary-foreground hover:bg-primary/90"
               >
                 {reviewing ? "Submitting..." : "Send to Review"}
               </Button>
@@ -724,7 +724,7 @@ export default function NewPostPage() {
               <Button
                 onClick={handleGenerateAndReview}
                 disabled={!topic.trim() || generating || reviewing}
-                className="bg-blue-600 hover:bg-blue-700 text-white"
+                className="bg-primary text-primary-foreground hover:bg-primary/90"
               >
                 {reviewing ? "Generating..." : "Generate & Send to Review"}
               </Button>
@@ -798,7 +798,7 @@ export default function NewPostPage() {
             <Button
               onClick={() => handleAiSave(true)}
               disabled={saving || reviewing || !editedContent.trim()}
-              className="bg-blue-600 hover:bg-blue-700 text-white"
+              className="bg-primary text-primary-foreground hover:bg-primary/90"
             >
               {reviewing ? "Submitting..." : "Send to Review"}
             </Button>

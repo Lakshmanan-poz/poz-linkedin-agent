@@ -633,7 +633,7 @@ function ReviewBtn({ submitting, submitted, onClick }: { submitting: boolean; su
       "flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all",
       submitted  ? "bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800"
                : submitting ? "bg-muted text-muted-foreground border border-border cursor-not-allowed"
-               : "bg-blue-600 text-white hover:bg-blue-700"
+               : "bg-primary text-primary-foreground hover:bg-primary/90"
     )}>
       {submitted ? "✓ Sent to Review" : submitting ? "Sending…" : (
         <><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 2 11 13"/><path d="m22 2-7 20-4-9-9-4z"/></svg>Send to Review</>
@@ -924,7 +924,7 @@ function ManualCarouselEditor({ userId, userName, onClose }: { userId?: number; 
               <button
                 onClick={sendToReview}
                 disabled={submitting || !postTitle.trim() || slides.some((s) => !s.title.trim())}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold bg-blue-600 text-white hover:bg-blue-700 transition-colors disabled:opacity-50"
+                className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
               >
                 {submitting ? (
                   <><svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="animate-spin"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Sending…</>
@@ -1185,7 +1185,7 @@ function DailyResultCard({ data, userId, userName }: { data: DailyResult; userId
               </button>
               <button
                 onClick={confirmSend}
-                className="px-4 py-1.5 rounded-lg text-xs bg-blue-600 text-white font-semibold hover:bg-blue-700 transition-colors flex items-center gap-1.5"
+                className="px-4 py-1.5 rounded-lg text-xs bg-primary text-primary-foreground font-semibold hover:bg-primary/90 transition-colors flex items-center gap-1.5"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 2 11 13"/><path d="m22 2-7 20-4-9-9-4z"/></svg>
                 Confirm Send
