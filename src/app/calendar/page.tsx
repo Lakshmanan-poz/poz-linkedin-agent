@@ -1,105 +1,101 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { PostStatusBadge } from "@/components/posts/post-status-badge";
-import { PostTypeBadge } from "@/components/posts/post-type-badge";
-import { Post, PostStatus, PostType } from "@/lib/types";
-import { addDays, startOfWeek, format, parseISO } from "date-fns";
+const CONTENT_CALENDAR = [
+  {
+    day: "Monday",
+    color: "text-blue-700 dark:text-blue-300",
+    bg: "bg-blue-50 dark:bg-blue-950/30",
+    border: "border-blue-200 dark:border-blue-800",
+    badge: "bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300",
+    type: "Thought Leadership",
+    focus: "Break down an AI trend and connect it to business outcomes.",
+  },
+  {
+    day: "Tuesday",
+    color: "text-purple-700 dark:text-purple-300",
+    bg: "bg-purple-50 dark:bg-purple-950/30",
+    border: "border-purple-200 dark:border-purple-800",
+    badge: "bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300",
+    type: "Engagement Post",
+    focus: "Ask a thought-provoking question about a challenge in your target industry.",
+  },
+  {
+    day: "Wednesday",
+    color: "text-orange-700 dark:text-orange-300",
+    bg: "bg-orange-50 dark:bg-orange-950/30",
+    border: "border-orange-200 dark:border-orange-800",
+    badge: "bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-300",
+    type: "Tool Spotlight",
+    focus: "Analyze a new AI tool (e.g. Google Stitch vs Figma) with your team's expert perspective.",
+  },
+  {
+    day: "Thursday",
+    color: "text-emerald-700 dark:text-emerald-300",
+    bg: "bg-emerald-50 dark:bg-emerald-950/30",
+    border: "border-emerald-200 dark:border-emerald-800",
+    badge: "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300",
+    type: "Industry Insight",
+    focus: "Share updates relevant to sectors your clients operate in.",
+  },
+  {
+    day: "Friday",
+    color: "text-rose-700 dark:text-rose-300",
+    bg: "bg-rose-50 dark:bg-rose-950/30",
+    border: "border-rose-200 dark:border-rose-800",
+    badge: "bg-rose-100 dark:bg-rose-900/40 text-rose-700 dark:text-rose-300",
+    type: "Forward-Looking",
+    focus: "Share a prediction or lesson learned from your work this week.",
+  },
+];
 
 export default function CalendarPage() {
-  const [weekStart, setWeekStart] = useState(() => {
-    const now = new Date();
-    const monday = startOfWeek(now, { weekStartsOn: 1 });
-    return monday;
-  });
-  const [posts, setPosts] = useState<Post[]>([]);
-  const [target, setTarget] = useState(5);
-
-  useEffect(() => {
-    const weekStr = format(weekStart, "yyyy-MM-dd");
-    fetch(`/api/calendar?week=${weekStr}`)
-      .then((r) => r.json())
-      .then((data) => setPosts(data.posts || []));
-
-    fetch("/api/settings")
-      .then((r) => r.json())
-      .then((settings) => {
-        if (settings.posts_per_week_target) setTarget(Number(settings.posts_per_week_target));
-      });
-  }, [weekStart]);
-
-  const days = Array.from({ length: 5 }, (_, i) => addDays(weekStart, i));
-
-  const getPostsForDay = (day: Date) => {
-    const dayStr = format(day, "yyyy-MM-dd");
-    return posts.filter((p) => p.scheduled_date === dayStr);
-  };
-
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold">Calendar</h2>
-          <p className="text-muted-foreground">
-            Week of {format(weekStart, "MMM d")} - {format(addDays(weekStart, 4), "MMM d, yyyy")}
-          </p>
-        </div>
-        <div className="flex items-center gap-4">
-          <div className="text-sm">
-            <span className="font-medium">{posts.length}</span>
-            <span className="text-muted-foreground">/{target} posts scheduled</span>
-          </div>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={() => setWeekStart(addDays(weekStart, -7))}>Previous</Button>
-            <Button variant="outline" size="sm" onClick={() => setWeekStart(startOfWeek(new Date(), { weekStartsOn: 1 }))}>This Week</Button>
-            <Button variant="outline" size="sm" onClick={() => setWeekStart(addDays(weekStart, 7))}>Next</Button>
-          </div>
-        </div>
+    <div className="space-y-8 max-w-3xl mx-auto py-8 px-4">
+
+      {/* Header */}
+      <div>
+        <h2 className="text-2xl font-bold text-foreground">Weekly Content Calendar</h2>
+        <p className="text-sm text-muted-foreground mt-1">Monday to Friday</p>
       </div>
 
-      <div className="grid grid-cols-5 gap-4">
-        {days.map((day) => {
-          const dayPosts = getPostsForDay(day);
-          const isToday = format(day, "yyyy-MM-dd") === format(new Date(), "yyyy-MM-dd");
+      {/* Description */}
+      <div className="rounded-xl border border-border bg-muted/30 px-5 py-4">
+        <p className="text-sm text-muted-foreground leading-relaxed">
+          Post <span className="font-semibold text-foreground">twice a week minimum</span>, up to five times for maximum reach.
+          Each post should feel like it comes from your team&apos;s lived experience — not a news feed.
+        </p>
+      </div>
 
-          return (
-            <div key={day.toISOString()} className="space-y-2">
-              <div className={`text-center py-2 rounded-lg ${isToday ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
-                <div className="text-xs font-medium">{format(day, "EEE")}</div>
-                <div className="text-lg font-bold">{format(day, "d")}</div>
-              </div>
+      {/* Table */}
+      <div className="rounded-xl border border-border overflow-hidden">
+        {/* Table header */}
+        <div className="grid grid-cols-[140px_1fr] bg-primary text-primary-foreground">
+          <div className="px-5 py-3 text-xs font-bold uppercase tracking-widest">Day</div>
+          <div className="px-5 py-3 text-xs font-bold uppercase tracking-widest border-l border-primary-foreground/20">Content Focus</div>
+        </div>
 
-              <div className="space-y-2 min-h-[200px]">
-                {dayPosts.map((post) => (
-                  <Link key={post.id} href={`/posts/${post.id}`}>
-                    <Card className="cursor-pointer hover:border-primary transition-colors">
-                      <CardContent className="p-3 space-y-2">
-                        <p className="text-sm font-medium line-clamp-2">{post.title}</p>
-                        <div className="flex flex-col gap-1">
-                          <PostTypeBadge type={post.post_type as PostType} />
-                          <PostStatusBadge status={post.status as PostStatus} />
-                        </div>
-                        <p className="text-xs text-muted-foreground">{post.author_name}</p>
-                      </CardContent>
-                    </Card>
-                  </Link>
-                ))}
-
-                {dayPosts.length === 0 && (
-                  <div className="border border-dashed rounded-lg p-4 text-center">
-                    <Link href="/posts/new" className="text-xs text-muted-foreground hover:text-primary">
-                      + Add post
-                    </Link>
-                  </div>
-                )}
-              </div>
+        {/* Rows */}
+        {CONTENT_CALENDAR.map((row, i) => (
+          <div
+            key={row.day}
+            className={`grid grid-cols-[140px_1fr] border-t border-border transition-colors hover:bg-muted/40 ${i % 2 === 0 ? "bg-background" : "bg-muted/10"}`}
+          >
+            {/* Day cell */}
+            <div className={`px-5 py-4 flex flex-col gap-1.5 border-r border-border ${row.bg}`}>
+              <span className={`text-sm font-bold ${row.color}`}>{row.day}</span>
+              <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full w-fit ${row.badge}`}>
+                {row.type}
+              </span>
             </div>
-          );
-        })}
+
+            {/* Focus cell */}
+            <div className="px-5 py-4 flex items-center">
+              <p className="text-sm text-foreground leading-relaxed">{row.focus}</p>
+            </div>
+          </div>
+        ))}
       </div>
+
     </div>
   );
 }
