@@ -3316,8 +3316,11 @@ export default function AgentCatalogPage() {
       // the route always responds in ≤23s, well under this limit.
       const ctrl = new AbortController();
       const tid  = setTimeout(() => ctrl.abort(), 26_000);
-      const excludeParam = seenTopics.length > 0
-        ? `&exclude=${encodeURIComponent(seenTopics.join("|||"))}`
+      // Only send the last batch (3) as exclude — sending all seen topics confuses
+      // x.ai and breaks the loop. Client-side fuzzy dedup handles all historical repeats.
+      const lastBatch = seenTopics.slice(-3);
+      const excludeParam = lastBatch.length > 0
+        ? `&exclude=${encodeURIComponent(lastBatch.join("|||"))}`
         : "";
       const res  = await fetch(`/api/agents/trending?day=${today}${excludeParam}`, { signal: ctrl.signal });
       clearTimeout(tid);
@@ -3361,12 +3364,28 @@ export default function AgentCatalogPage() {
       const shown     = newUnique.slice(0, count);
 
       if (shown.length === 0) {
+        // All returned topics were dupes — show what we got anyway so loop never dead-ends
+        const fallback = fresh.slice(0, count);
+        if (fallback.length === 0) {
+          setMessages((prev) => prev.map((m) =>
+            m.id === agentId
+              ? { ...m, generating: false, text: "No more new topics available right now. Try again in a moment." }
+              : m
+          ));
+          setPendingQ(null);
+          return;
+        }
+        // Use fallback topics (may overlap slightly) rather than blocking the loop
+        const shownFallback = fallback;
+        const newSeenFallback = [...seenTopics, ...shownFallback.map((t) => t.topic)];
+        const trendSourcesFallback = shownFallback.filter((t) => t.handle).map((t) => ({ handle: t.handle!, authority: t.authority }));
+        const introFallback = `Here are ${shownFallback.length} more **${contentType}** topics from X. Click a card or type a number:`;
         setMessages((prev) => prev.map((m) =>
           m.id === agentId
-            ? { ...m, generating: false, text: "No more new topics available right now. Try again in a moment." }
+            ? { ...m, generating: false, text: introFallback, trendList: shownFallback, trendSources: trendSourcesFallback.length > 0 ? trendSourcesFallback : undefined }
             : m
         ));
-        setPendingQ(null);
+        setPendingQ({ type: "trend-topic-pick", trends: shownFallback, seenTopics: newSeenFallback });
         return;
       }
 
