@@ -1,6 +1,15 @@
 -- POZ Social Media Agent - Complete Database Schema
 -- This file contains the complete schema and migration for auth columns
 
+-- Trending topics persistent cache (survives Lambda cold starts)
+CREATE TABLE IF NOT EXISTS trend_cache (
+  cache_key  TEXT PRIMARY KEY,
+  day        TEXT NOT NULL,
+  content_type TEXT NOT NULL,
+  trends     JSONB NOT NULL,
+  fetched_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 -- Agent Documents table (RAG file uploads)
 CREATE TABLE IF NOT EXISTS agent_documents (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
