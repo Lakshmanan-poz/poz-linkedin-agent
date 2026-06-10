@@ -57,7 +57,7 @@ const FONT_LINK = `<link href="https://rsms.me/inter/inter.css" rel="stylesheet"
 const LOGO = `<div style="width:65px;height:65px;flex-shrink:0;"><svg viewBox="0 0 110 110" fill="none" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%;display:block;"><path fill="#0a0a0a" fill-rule="evenodd" d="M15,28 H67 Q82,28 82,43 V95 Q82,110 67,110 H15 Q0,110 0,95 V43 Q0,28 15,28 Z M43,0 H95 Q110,0 110,15 V67 Q110,82 95,82 H43 Q28,82 28,67 V15 Q28,0 43,0 Z"/></svg></div>`;
 const FOOT_RULE = `<div style="height:1px;background:linear-gradient(90deg,transparent,rgba(0,0,0,0.16) 12%,rgba(0,0,0,0.16) 88%,transparent);flex-shrink:0;"></div>`;
 const WORDMARK  = `<span style="font-family:Inter,sans-serif;font-size:32px;font-weight:510;color:#0a0a0a;letter-spacing:-0.4px;">point one zero</span>`;
-const SWIPE     = `<img src="/assets/Swipe.png" alt="" style="width:36px;height:36px;display:block;flex-shrink:0;object-fit:contain;">`;
+const SWIPE     = `<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 36 36" style="display:block;flex-shrink:0;"><path fill="#0a0a0a" d="M6,0 L28,18 L6,36 L13,36 L33,18 L13,0 Z"/></svg>`;
 const FOOTER_STD = `<div style="padding:0 96px;flex-shrink:0;margin-top:auto;">${FOOT_RULE}<div style="display:flex;justify-content:space-between;align-items:center;padding:20px 0 24px;">${WORDMARK}${SWIPE}</div></div>`;
 const FOOTER_CTA = `<div style="padding:0 96px;flex-shrink:0;margin-top:auto;">${FOOT_RULE}<div style="padding:20px 0 24px;">${WORDMARK}</div></div>`;
 
@@ -339,7 +339,7 @@ CRITICAL: The footer div MUST have margin-top:auto so it is always pinned to the
 Do NOT use a spacer div before the footer. Use margin-top:auto on the footer itself.
 
 Non-last slides (has arrow image on right):
-<div style="padding:0 96px;flex-shrink:0;margin-top:auto;"><div style="height:1px;background:linear-gradient(90deg,transparent,rgba(0,0,0,0.16) 12%,rgba(0,0,0,0.16) 88%,transparent);"></div><div style="display:flex;justify-content:space-between;align-items:center;padding:20px 0 24px;"><span style="font-family:Inter,sans-serif;font-size:32px;font-weight:510;color:#0a0a0a;letter-spacing:-0.4px;">point one zero</span><img src="/assets/Swipe.png" alt="" style="width:36px;height:36px;display:block;flex-shrink:0;object-fit:contain;"></div></div>
+<div style="padding:0 96px;flex-shrink:0;margin-top:auto;"><div style="height:1px;background:linear-gradient(90deg,transparent,rgba(0,0,0,0.16) 12%,rgba(0,0,0,0.16) 88%,transparent);"></div><div style="display:flex;justify-content:space-between;align-items:center;padding:20px 0 24px;"><span style="font-family:Inter,sans-serif;font-size:32px;font-weight:510;color:#0a0a0a;letter-spacing:-0.4px;">point one zero</span><svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 36 36" style="display:block;flex-shrink:0;"><path fill="#0a0a0a" d="M6,0 L28,18 L6,36 L13,36 L33,18 L13,0 Z"/></svg></div></div>
 
 Last slide / CTA (NO arrow — wordmark only):
 <div style="padding:0 96px;flex-shrink:0;margin-top:auto;"><div style="height:1px;background:linear-gradient(90deg,transparent,rgba(0,0,0,0.16) 12%,rgba(0,0,0,0.16) 88%,transparent);"></div><div style="padding:20px 0 24px;"><span style="font-family:Inter,sans-serif;font-size:32px;font-weight:510;color:#0a0a0a;letter-spacing:-0.4px;">point one zero</span></div></div>
