@@ -5,17 +5,6 @@ import { getClaudeApiKey } from "@/lib/secrets";
 type Slide = { position: number; type: string; title: string; body: string };
 type Arch = "COVER" | "LIST" | "DEFINITION" | "STAT" | "QUOTE" | "EDITORIAL" | "TWOCOL" | "CTA";
 
-/* ─── Shared design constants (derived from generate_carousel.py, scaled 1080→1024) ─── */
-// Scale factor: 1024/1080 = 0.948
-// Background: cool blue-grey top → warm cream bottom (matches reference PDF exactly)
-const BG = "linear-gradient(168deg, #dae0ee 0%, #edf0f6 18%, #f5f4f0 50%, #ece7db 100%)";
-
-// Logo: 62px (Python 65px × 0.948). INK #0a0a0a on all slides.
-const LOGO = `<div style="width:62px;height:62px;flex-shrink:0;"><svg viewBox="0 0 110 110" fill="none" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%;display:block;"><path fill="#0a0a0a" fill-rule="evenodd" d="M15,28 H67 Q82,28 82,43 V95 Q82,110 67,110 H15 Q0,110 0,95 V43 Q0,28 15,28 Z M43,0 H95 Q110,0 110,15 V67 Q110,82 95,82 H43 Q28,82 28,67 V15 Q28,0 43,0 Z"/></svg></div>`;
-
-// Swipe chevron: matches reference PDF solid › icon
-const CHEVRON = `<svg width="44" height="44" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0;"><path d="M15 9L31 22L15 35" stroke="#0a0a0a" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
-
 /* ─── Archetype routing ──────────────────────────────────────────────────────── */
 function getArchetype(slide: Slide, total: number): Arch {
   const t = (slide.type || "").toLowerCase().replace(/[- _]/g, "");
@@ -35,386 +24,320 @@ function getArchetype(slide: Slide, total: number): Arch {
 }
 
 /* ════════════════════════════════════════════════════════════════════════════════
-   REFERENCE HTML — ALL MEASUREMENTS FROM generate_carousel.py, SCALED 1350→1280
+   DESIGN TOKENS — SKILL.md v2.0 (poz-social-media-design-system)
+   Canvas: 1080 × 1350 px
 
-   LAYOUT RULES (derived from Python script):
-   ─────────────────────────────────────────────────────────────────────────────
-   Canvas:          1024 × 1280 px
-   Horizontal margin: 66px (Python ML=70px × 0.948)
-   Eyebrow from top: 80px (Python 84px × 0.948)
-   Content from top: 140px (Python 148px × 0.948) — FIXED on every slide
-   Footer rule from top: 1194px (Python 1260px × 0.948) = 86px from bottom
-   Logo size:        62px (Python 65px × 0.948)
+   BACKGROUND:
+   --c-paper (all slides):   linear-gradient(180deg, #fdfcfa 0%, #fcfbf8 55%, #faf9f5 100%)
+   --c-veil (Cover + CTA):   above + radial-gradient(ellipse 75% 50% at 95% -5%, rgba(0,159,239,0.075), transparent 65%)
 
-   KEY SPACING RULE:
-   header-area ≈ 80px → fixed spacer = 60px → content starts at 140px
-   After content: flex:1 fills the gap → footer stays pinned at bottom
-   Cover & CTA: flex:1 is AFTER content (gap below content), NOT before it
+   TYPE SCALE (exact slide px from SKILL.md §4.3, §8):
+   display-lg:  124px / 600 / -5px   / 1.06 — Cover headline
+   display-md:   88px / 600 / -3.2px / 1.08 — CTA headline
+   display-sm:   64px / 600 / -1.6px / 1.14 — Stat label, two-col heading, list headline
+   word:        220px / 600 / -10px  / 0.90 — Definition WORD
+   stat-val:    440px / 600 / -22px  / 0.86 — Featured stat (brand blue)
+   stat-suf:     96px / 600          / 1.0  — Stat suffix (brand, opacity 0.55)
+   lead:         44px / 400 / -0.4px / 1.45 — Lead under headline
+   body:         40px / 400 / -0.3px / 1.45 — Body paragraphs
+   body-sm:      32px / 400 mono            — Source / footnote
+   wordmark:     32px / 510 / -0.4px        — Footer
+   eyebrow:      14px / 600 / +0.05em upper — Eyebrow label
+   quote:        72px / 510 / -1.8px / 1.16 — Pull quote
+   editorial:    64px / 400 / -0.6px / 1.22 — Editorial paragraph
+   drop-cap:    240px / 400 / lh:0.82       — First letter (ALWAYS INK, never brand)
 
+   LAYOUT: --c-pad-x:96px, --c-pad-top:80px
+   LOGO: 65×65px top-right
 ════════════════════════════════════════════════════════════════════════════════ */
 
-const REF_COVER = `<!-- COVER: content near top, flex:1 gap BELOW content, footer pinned -->
-<div style="width:1024px;height:1280px;background:${BG};font-family:'Inter',sans-serif;display:flex;flex-direction:column;box-sizing:border-box;overflow:hidden;">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
-  <!-- HEADER: eyebrow + logo at ~80px from top -->
-  <div style="display:flex;align-items:flex-start;justify-content:space-between;padding:56px 66px 0;flex-shrink:0;">
-    <div style="display:flex;align-items:center;gap:10px;padding-top:4px;">
-      <div style="width:9px;height:9px;border-radius:50%;background:#009FEF;flex-shrink:0;"></div>
-      <span style="font-family:'Inter',sans-serif;font-size:13px;font-weight:600;color:#888888;letter-spacing:0.05em;text-transform:uppercase;">AI Experience Design</span>
+const BG_PAPER = `linear-gradient(180deg, #fdfcfa 0%, #fcfbf8 55%, #faf9f5 100%)`;
+const BG_VEIL  = `radial-gradient(ellipse 75% 50% at 95% -5%, rgba(0,159,239,0.075), transparent 65%), ${BG_PAPER}`;
+const FONT_LINK = `<link href="https://rsms.me/inter/inter.css" rel="stylesheet">`;
+const LOGO = `<div style="width:65px;height:65px;flex-shrink:0;"><svg viewBox="0 0 110 110" fill="none" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%;display:block;"><path fill="#0a0a0a" fill-rule="evenodd" d="M15,28 H67 Q82,28 82,43 V95 Q82,110 67,110 H15 Q0,110 0,95 V43 Q0,28 15,28 Z M43,0 H95 Q110,0 110,15 V67 Q110,82 95,82 H43 Q28,82 28,67 V15 Q28,0 43,0 Z"/></svg></div>`;
+const FOOT_RULE = `<div style="height:1px;background:linear-gradient(90deg,transparent,rgba(0,0,0,0.16) 12%,rgba(0,0,0,0.16) 88%,transparent);flex-shrink:0;"></div>`;
+const WORDMARK  = `<span style="font-family:Inter,sans-serif;font-size:32px;font-weight:510;color:#0a0a0a;letter-spacing:-0.4px;">point one zero</span>`;
+const SWIPE     = `<span style="font-family:Inter,sans-serif;font-size:32px;font-weight:700;color:#0a0a0a;line-height:1;">›</span>`;
+const FOOTER_STD = `<div style="padding:0 96px;flex-shrink:0;">${FOOT_RULE}<div style="display:flex;justify-content:space-between;align-items:center;padding:20px 0 24px;">${WORDMARK}${SWIPE}</div></div>`;
+const FOOTER_CTA = `<div style="padding:0 96px;flex-shrink:0;">${FOOT_RULE}<div style="padding:20px 0 24px;">${WORDMARK}</div></div>`;
+
+/* ─── Eight reference slide blocks ───────────────────────────────────────────── */
+
+const REF_COVER = `<!-- COVER: 1080x1350, warm paper + veil, headline at top, flex:1 gap below -->
+<div style="width:1080px;height:1350px;background:${BG_VEIL};font-family:Inter,sans-serif;display:flex;flex-direction:column;box-sizing:border-box;overflow:hidden;">
+  ${FONT_LINK}
+  <div style="display:flex;align-items:flex-start;justify-content:space-between;padding:80px 96px 0;flex-shrink:0;">
+    <div style="display:flex;align-items:center;gap:12px;padding-top:6px;">
+      <div style="width:10px;height:10px;border-radius:50%;background:#009FEF;flex-shrink:0;box-shadow:0 0 8px rgba(0,159,239,0.35);"></div>
+      <span style="font-family:Inter,sans-serif;font-size:14px;font-weight:600;color:#767d87;letter-spacing:0.05em;text-transform:uppercase;">AI Experience Design</span>
     </div>
     ${LOGO}
   </div>
-  <!-- SPACER: 60px → positions headline at 140px from top -->
-  <div style="height:60px;flex-shrink:0;"></div>
-  <!-- CONTENT: headline + lead -->
-  <div style="padding:0 66px;flex-shrink:0;">
-    <div style="font-family:'Inter',sans-serif;font-size:88px;font-weight:800;line-height:1.04;letter-spacing:-3.5px;color:#0a0a0a;">Most enterprise<br>AI fails on the<br><span style="color:#009FEF;">experience</span></div>
+  <div style="padding:0 96px;flex-shrink:0;margin-top:24px;">
+    <h1 style="font-family:Inter,sans-serif;font-size:124px;font-weight:600;line-height:1.06;letter-spacing:-5px;color:#0a0a0a;margin:0;">Most enterprise<br>AI fails on the<br><span style="color:#009FEF;">experience</span></h1>
     <div style="height:44px;"></div>
-    <p style="font-family:'Inter',sans-serif;font-size:32px;font-weight:400;color:#777777;line-height:1.52;letter-spacing:-0.4px;margin:0;max-width:840px;">Not the models. Not the engineering. Nobody designed how people actually use it.</p>
+    <p style="font-family:Inter,sans-serif;font-size:44px;font-weight:400;color:#3f3f46;line-height:1.45;letter-spacing:-0.4px;margin:0;max-width:888px;">Not the models. Not the engineering. Nobody designed how people actually use it.</p>
   </div>
-  <!-- flex:1 AFTER content — creates the characteristic empty space below lead text -->
-  <div style="flex:1;"></div>
-  <!-- FOOTER: pinned at bottom -->
-  <div style="padding:0 66px;flex-shrink:0;">
-    <div style="height:1px;background:#c8cdd8;"></div>
-    <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 0 20px;">
-      <span style="font-family:'Inter',sans-serif;font-size:21px;font-weight:700;color:#0a0a0a;letter-spacing:0.01em;">point one zero</span>
-      ${CHEVRON}
-    </div>
-  </div>
+  <div style="flex:1;min-height:0;"></div>
+  ${FOOTER_STD}
 </div>`;
 
-const REF_LIST = `<!-- LIST: headline + 4 rows that flex to fill space evenly, row text centered -->
-<div style="width:1024px;height:1280px;background:${BG};font-family:'Inter',sans-serif;display:flex;flex-direction:column;box-sizing:border-box;overflow:hidden;">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
-  <div style="display:flex;align-items:flex-start;justify-content:space-between;padding:56px 66px 0;flex-shrink:0;">
-    <span style="font-family:'Inter',sans-serif;font-size:13px;font-weight:600;color:#888888;letter-spacing:0.05em;text-transform:uppercase;padding-top:4px;">What Design Solves</span>
+const REF_LIST = `<!-- LIST: 64px headline, rule, flex:1 rows, 4 items with number+name+desc columns -->
+<div style="width:1080px;height:1350px;background:${BG_PAPER};font-family:Inter,sans-serif;display:flex;flex-direction:column;box-sizing:border-box;overflow:hidden;">
+  ${FONT_LINK}
+  <div style="display:flex;align-items:flex-start;justify-content:space-between;padding:80px 96px 0;flex-shrink:0;">
+    <span style="font-family:Inter,sans-serif;font-size:14px;font-weight:600;color:#767d87;letter-spacing:0.05em;text-transform:uppercase;padding-top:6px;">What Design Solves</span>
     ${LOGO}
   </div>
-  <div style="height:60px;flex-shrink:0;"></div>
-  <!-- Headline at 140px from top -->
-  <div style="padding:0 66px;flex-shrink:0;">
-    <div style="font-family:'Inter',sans-serif;font-size:62px;font-weight:800;line-height:1.1;letter-spacing:-2px;color:#0a0a0a;">Four problems<br>only design solves</div>
+  <div style="padding:0 96px;flex-shrink:0;margin-top:24px;">
+    <h2 style="font-family:Inter,sans-serif;font-size:64px;font-weight:600;line-height:1.14;letter-spacing:-1.6px;color:#0a0a0a;margin:0;">Four problems<br>only design solves</h2>
   </div>
-  <!-- Rule 24px below headline -->
-  <div style="height:24px;flex-shrink:0;"></div>
-  <div style="height:1px;background:#c8cdd8;margin:0 66px;flex-shrink:0;"></div>
-  <!-- ROWS: flex:1 container distributes 4 rows evenly to fill remaining space -->
-  <div style="flex:1;padding:0 66px;display:flex;flex-direction:column;">
-    <!-- Row 1 -->
-    <div style="flex:1;display:flex;align-items:center;gap:0;">
-      <span style="font-family:'Inter',sans-serif;font-size:20px;font-weight:600;color:#009FEF;width:40px;flex-shrink:0;">01</span>
-      <div style="width:390px;flex-shrink:0;">
-        <span style="font-family:'Inter',sans-serif;font-size:42px;font-weight:800;color:#0a0a0a;letter-spacing:-1px;">Adoption</span>
-      </div>
-      <span style="font-family:'Inter',sans-serif;font-size:28px;font-weight:400;color:#888888;letter-spacing:-0.3px;line-height:1.4;flex:1;">People actually use it</span>
+  <div style="height:1px;background:rgba(0,0,0,0.08);margin:28px 96px 0;flex-shrink:0;"></div>
+  <div style="flex:1;padding:0 96px;display:flex;flex-direction:column;min-height:0;">
+    <div style="flex:1;display:flex;align-items:center;">
+      <span style="font-family:'Courier New',monospace;font-size:24px;color:#009FEF;width:52px;flex-shrink:0;">01</span>
+      <div style="width:380px;flex-shrink:0;"><span style="font-family:Inter,sans-serif;font-size:48px;font-weight:600;color:#0a0a0a;letter-spacing:-1.2px;">Adoption</span></div>
+      <span style="font-family:Inter,sans-serif;font-size:36px;font-weight:400;color:#767d87;line-height:1.42;flex:1;">People actually use it</span>
     </div>
-    <div style="height:1px;background:#c8cdd8;flex-shrink:0;"></div>
-    <!-- Row 2 -->
-    <div style="flex:1;display:flex;align-items:center;gap:0;">
-      <span style="font-family:'Inter',sans-serif;font-size:20px;font-weight:600;color:#009FEF;width:40px;flex-shrink:0;">02</span>
-      <div style="width:390px;flex-shrink:0;">
-        <span style="font-family:'Inter',sans-serif;font-size:42px;font-weight:800;color:#0a0a0a;letter-spacing:-1px;">Trust</span>
-      </div>
-      <span style="font-family:'Inter',sans-serif;font-size:28px;font-weight:400;color:#888888;letter-spacing:-0.3px;line-height:1.4;flex:1;">They act without re-checking</span>
+    <div style="height:1px;background:rgba(0,0,0,0.08);flex-shrink:0;"></div>
+    <div style="flex:1;display:flex;align-items:center;">
+      <span style="font-family:'Courier New',monospace;font-size:24px;color:#009FEF;width:52px;flex-shrink:0;">02</span>
+      <div style="width:380px;flex-shrink:0;"><span style="font-family:Inter,sans-serif;font-size:48px;font-weight:600;color:#0a0a0a;letter-spacing:-1.2px;">Trust</span></div>
+      <span style="font-family:Inter,sans-serif;font-size:36px;font-weight:400;color:#767d87;line-height:1.42;flex:1;">They act without re-checking</span>
     </div>
-    <div style="height:1px;background:#c8cdd8;flex-shrink:0;"></div>
-    <!-- Row 3 -->
-    <div style="flex:1;display:flex;align-items:center;gap:0;">
-      <span style="font-family:'Inter',sans-serif;font-size:20px;font-weight:600;color:#009FEF;width:40px;flex-shrink:0;">03</span>
-      <div style="width:390px;flex-shrink:0;">
-        <span style="font-family:'Inter',sans-serif;font-size:42px;font-weight:800;color:#0a0a0a;letter-spacing:-1px;">Governance</span>
-      </div>
-      <span style="font-family:'Inter',sans-serif;font-size:28px;font-weight:400;color:#888888;letter-spacing:-0.3px;line-height:1.4;flex:1;">The business owns the rules</span>
+    <div style="height:1px;background:rgba(0,0,0,0.08);flex-shrink:0;"></div>
+    <div style="flex:1;display:flex;align-items:center;">
+      <span style="font-family:'Courier New',monospace;font-size:24px;color:#009FEF;width:52px;flex-shrink:0;">03</span>
+      <div style="width:380px;flex-shrink:0;"><span style="font-family:Inter,sans-serif;font-size:48px;font-weight:600;color:#0a0a0a;letter-spacing:-1.2px;">Governance</span></div>
+      <span style="font-family:Inter,sans-serif;font-size:36px;font-weight:400;color:#767d87;line-height:1.42;flex:1;">The business owns the rules</span>
     </div>
-    <div style="height:1px;background:#c8cdd8;flex-shrink:0;"></div>
-    <!-- Row 4 -->
-    <div style="flex:1;display:flex;align-items:center;gap:0;">
-      <span style="font-family:'Inter',sans-serif;font-size:20px;font-weight:600;color:#009FEF;width:40px;flex-shrink:0;">04</span>
-      <div style="width:390px;flex-shrink:0;">
-        <span style="font-family:'Inter',sans-serif;font-size:42px;font-weight:800;color:#0a0a0a;letter-spacing:-1px;">Usefulness</span>
-      </div>
-      <span style="font-family:'Inter',sans-serif;font-size:28px;font-weight:400;color:#888888;letter-spacing:-0.3px;line-height:1.4;flex:1;">Correct and actually helpful</span>
+    <div style="height:1px;background:rgba(0,0,0,0.08);flex-shrink:0;"></div>
+    <div style="flex:1;display:flex;align-items:center;">
+      <span style="font-family:'Courier New',monospace;font-size:24px;color:#009FEF;width:52px;flex-shrink:0;">04</span>
+      <div style="width:380px;flex-shrink:0;"><span style="font-family:Inter,sans-serif;font-size:48px;font-weight:600;color:#0a0a0a;letter-spacing:-1.2px;">Usefulness</span></div>
+      <span style="font-family:Inter,sans-serif;font-size:36px;font-weight:400;color:#767d87;line-height:1.42;flex:1;">Correct and actually helpful</span>
     </div>
-    <div style="height:1px;background:#c8cdd8;flex-shrink:0;"></div>
+    <div style="height:1px;background:rgba(0,0,0,0.08);flex-shrink:0;"></div>
   </div>
-  <div style="padding:0 66px;flex-shrink:0;">
-    <div style="height:1px;background:#c8cdd8;"></div>
-    <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 0 20px;">
-      <span style="font-family:'Inter',sans-serif;font-size:21px;font-weight:700;color:#0a0a0a;letter-spacing:0.01em;">point one zero</span>
-      ${CHEVRON}
-    </div>
-  </div>
+  ${FOOTER_STD}
 </div>`;
 
-const REF_DEFINITION = `<!-- DEFINITION: keyword at 140px from top, accent rule, bold definition, grey body -->
-<div style="width:1024px;height:1280px;background:${BG};font-family:'Inter',sans-serif;display:flex;flex-direction:column;box-sizing:border-box;overflow:hidden;">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
-  <div style="display:flex;align-items:flex-start;justify-content:space-between;padding:56px 66px 0;flex-shrink:0;">
-    <span style="font-family:'Inter',sans-serif;font-size:13px;font-weight:600;color:#888888;letter-spacing:0.05em;text-transform:uppercase;padding-top:4px;">The Case</span>
+const REF_DEFINITION = `<!-- DEFINITION: 220px WORD + brand accent rule + 44px bold def + 40px body -->
+<div style="width:1080px;height:1350px;background:${BG_PAPER};font-family:Inter,sans-serif;display:flex;flex-direction:column;box-sizing:border-box;overflow:hidden;">
+  ${FONT_LINK}
+  <div style="display:flex;align-items:flex-start;justify-content:space-between;padding:80px 96px 0;flex-shrink:0;">
+    <span style="font-family:Inter,sans-serif;font-size:14px;font-weight:600;color:#767d87;letter-spacing:0.05em;text-transform:uppercase;padding-top:6px;">The Case</span>
     ${LOGO}
   </div>
-  <div style="height:60px;flex-shrink:0;"></div>
-  <div style="padding:0 66px;flex-shrink:0;">
-    <div style="font-family:'Inter',sans-serif;font-size:148px;font-weight:800;line-height:0.9;letter-spacing:-8px;color:#0a0a0a;text-transform:uppercase;">DESIGN</div>
-    <div style="width:90px;height:4px;background:#009FEF;margin:28px 0 0;flex-shrink:0;"></div>
-    <div style="height:22px;"></div>
-    <div style="font-family:'Inter',sans-serif;font-size:40px;font-weight:700;line-height:1.28;letter-spacing:-0.8px;color:#0a0a0a;max-width:840px;">Not decoration applied after engineering finishes. The structural layer that decides whether the product is adopted at all.</div>
+  <div style="padding:0 96px;flex-shrink:0;margin-top:24px;">
+    <h2 style="font-family:Inter,sans-serif;font-size:220px;font-weight:600;line-height:0.90;letter-spacing:-10px;color:#0a0a0a;text-transform:uppercase;margin:0;">DESIGN</h2>
+    <div style="width:96px;height:2px;background:linear-gradient(90deg,#009FEF,rgba(0,159,239,0));margin:28px 0 0;flex-shrink:0;"></div>
     <div style="height:20px;"></div>
-    <p style="font-family:'Inter',sans-serif;font-size:29px;font-weight:400;color:#888888;line-height:1.52;letter-spacing:-0.3px;margin:0;max-width:840px;">You cannot design every conversation. You design the building blocks and the rules — the AI fills in the rest.</p>
+    <p style="font-family:Inter,sans-serif;font-size:44px;font-weight:510;color:#0a0a0a;line-height:1.28;letter-spacing:-0.4px;margin:0;max-width:888px;">Not decoration applied after engineering finishes. The structural layer that decides whether the product is adopted at all.</p>
+    <div style="height:20px;"></div>
+    <p style="font-family:Inter,sans-serif;font-size:40px;font-weight:400;color:#3f3f46;line-height:1.45;letter-spacing:-0.3px;margin:0;max-width:888px;">You cannot design every conversation. You design the building blocks and the rules — the AI fills in the rest.</p>
   </div>
   <div style="flex:1;"></div>
-  <div style="padding:0 66px;flex-shrink:0;">
-    <div style="height:1px;background:#c8cdd8;"></div>
-    <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 0 20px;">
-      <span style="font-family:'Inter',sans-serif;font-size:21px;font-weight:700;color:#0a0a0a;letter-spacing:0.01em;">point one zero</span>
-      ${CHEVRON}
-    </div>
-  </div>
+  ${FOOTER_STD}
 </div>`;
 
-const REF_STAT = `<!-- STAT: giant number at 140px, label, body, flex:1 gap to footer -->
-<div style="width:1024px;height:1280px;background:${BG};font-family:'Inter',sans-serif;display:flex;flex-direction:column;box-sizing:border-box;overflow:hidden;">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
-  <div style="display:flex;align-items:flex-start;justify-content:space-between;padding:56px 66px 0;flex-shrink:0;">
-    <span style="font-family:'Inter',sans-serif;font-size:13px;font-weight:600;color:#888888;letter-spacing:0.05em;text-transform:uppercase;padding-top:4px;">The Problem</span>
+const REF_STAT = `<!-- STAT: featured 440px brand number + 96px suffix + 64px label + 40px body -->
+<div style="width:1080px;height:1350px;background:${BG_PAPER};font-family:Inter,sans-serif;display:flex;flex-direction:column;box-sizing:border-box;overflow:hidden;">
+  ${FONT_LINK}
+  <div style="display:flex;align-items:flex-start;justify-content:space-between;padding:80px 96px 0;flex-shrink:0;">
+    <span style="font-family:Inter,sans-serif;font-size:14px;font-weight:600;color:#767d87;letter-spacing:0.05em;text-transform:uppercase;padding-top:6px;">The Problem</span>
     ${LOGO}
   </div>
-  <div style="height:60px;flex-shrink:0;"></div>
-  <div style="padding:0 66px;flex-shrink:0;">
+  <div style="padding:0 96px;flex-shrink:0;margin-top:24px;">
     <div style="display:flex;align-items:flex-end;line-height:1;">
-      <span style="font-family:'Inter',sans-serif;font-size:236px;font-weight:800;line-height:0.86;letter-spacing:-13px;color:#009FEF;">73</span>
-      <span style="font-family:'Inter',sans-serif;font-size:95px;font-weight:700;line-height:1;letter-spacing:-3px;color:#888888;padding-bottom:6px;">%</span>
+      <span style="font-family:Inter,sans-serif;font-size:440px;font-weight:600;line-height:0.86;letter-spacing:-22px;color:#009FEF;">73</span>
+      <span style="font-family:Inter,sans-serif;font-size:96px;font-weight:600;line-height:1;color:#009FEF;opacity:0.55;padding-bottom:8px;">%</span>
     </div>
     <div style="height:48px;"></div>
-    <div style="font-family:'Inter',sans-serif;font-size:44px;font-weight:800;line-height:1.22;letter-spacing:-1.5px;color:#0a0a0a;max-width:840px;">of enterprise AI projects fail — because the experience was never designed.</div>
-    <div style="height:22px;"></div>
-    <p style="font-family:'Inter',sans-serif;font-size:27px;font-weight:400;color:#888888;line-height:1.52;letter-spacing:-0.3px;margin:0;max-width:840px;">The AI provides intelligence. Engineering provides infrastructure. Design provides the reason anyone uses it.</p>
-  </div>
-  <div style="flex:1;"></div>
-  <div style="padding:0 66px;flex-shrink:0;">
-    <div style="height:1px;background:#c8cdd8;"></div>
-    <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 0 20px;">
-      <span style="font-family:'Inter',sans-serif;font-size:21px;font-weight:700;color:#0a0a0a;letter-spacing:0.01em;">point one zero</span>
-      ${CHEVRON}
-    </div>
-  </div>
-</div>`;
-
-const REF_QUOTE = `<!-- QUOTE: vertically centered block between header and footer -->
-<div style="width:1024px;height:1280px;background:${BG};font-family:'Inter',sans-serif;display:flex;flex-direction:column;box-sizing:border-box;overflow:hidden;">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
-  <div style="display:flex;justify-content:flex-end;padding:56px 66px 0;flex-shrink:0;">
-    ${LOGO}
-  </div>
-  <!-- Quote content vertically centered between header and footer -->
-  <div style="flex:1;display:flex;flex-direction:column;justify-content:center;padding:0 66px;">
-    <div style="font-family:'Inter',sans-serif;font-size:100px;font-weight:800;color:#009FEF;line-height:0.9;letter-spacing:-2px;margin-bottom:14px;">"</div>
-    <div style="font-family:'Inter',sans-serif;font-size:60px;font-weight:700;line-height:1.14;letter-spacing:-1.8px;color:#0a0a0a;max-width:840px;">Speed without clarity just reaches the wrong outcome faster.</div>
-    <div style="height:44px;"></div>
-    <div style="height:1px;background:#c8cdd8;"></div>
-    <div style="padding-top:20px;">
-      <div style="font-family:'Inter',sans-serif;font-size:34px;font-weight:700;color:#0a0a0a;letter-spacing:-0.5px;">Point One Zero</div>
-      <div style="font-family:'Inter',sans-serif;font-size:20px;font-weight:400;color:#888888;letter-spacing:0.04em;text-transform:uppercase;margin-top:8px;">Internal · 2026</div>
-    </div>
-  </div>
-  <div style="padding:0 66px;flex-shrink:0;">
-    <div style="height:1px;background:#c8cdd8;"></div>
-    <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 0 20px;">
-      <span style="font-family:'Inter',sans-serif;font-size:21px;font-weight:700;color:#0a0a0a;letter-spacing:0.01em;">point one zero</span>
-      ${CHEVRON}
-    </div>
-  </div>
-</div>`;
-
-const REF_EDITORIAL = `<!-- EDITORIAL: drop cap at 140px from top, editorial body, flex:1 gap before footer -->
-<div style="width:1024px;height:1280px;background:${BG};font-family:'Inter',sans-serif;display:flex;flex-direction:column;box-sizing:border-box;overflow:hidden;">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
-  <div style="display:flex;align-items:flex-start;justify-content:space-between;padding:56px 66px 0;flex-shrink:0;">
-    <span style="font-family:'Inter',sans-serif;font-size:13px;font-weight:600;color:#888888;letter-spacing:0.05em;text-transform:uppercase;padding-top:4px;">The Reframe</span>
-    ${LOGO}
-  </div>
-  <div style="height:60px;flex-shrink:0;"></div>
-  <div style="padding:0 66px;flex-shrink:0;">
-    <!-- Drop cap row: large "A" floated left, text flows beside it -->
-    <div style="display:flex;align-items:flex-start;gap:14px;">
-      <div style="font-family:'Inter',sans-serif;font-size:156px;font-weight:800;line-height:0.88;letter-spacing:-4px;color:#009FEF;flex-shrink:0;">A</div>
-      <div style="font-family:'Inter',sans-serif;font-size:47px;font-weight:700;line-height:1.22;letter-spacing:-0.8px;color:#0a0a0a;padding-top:8px;">n AI chat is not a search bar. It must earn <span style="color:#009FEF;">trust</span>, stay compliant, and prove its value — all through a single screen.</div>
-    </div>
+    <p style="font-family:Inter,sans-serif;font-size:64px;font-weight:600;line-height:1.14;letter-spacing:-1.6px;color:#0a0a0a;margin:0;max-width:888px;">of enterprise AI projects fail — because the experience was never designed.</p>
     <div style="height:24px;"></div>
-    <p style="font-family:'Inter',sans-serif;font-size:29px;font-weight:400;color:#888888;line-height:1.52;letter-spacing:-0.3px;margin:0;max-width:840px;">The difference between adoption and abandonment is almost never the intelligence of the model. It is whether people could use it on the first day without a training session.</p>
+    <p style="font-family:Inter,sans-serif;font-size:40px;font-weight:400;color:#3f3f46;line-height:1.45;letter-spacing:-0.3px;margin:0;max-width:888px;">The AI provides intelligence. Engineering provides infrastructure. Design provides the reason anyone uses it.</p>
   </div>
   <div style="flex:1;"></div>
-  <div style="padding:0 66px;flex-shrink:0;">
-    <div style="height:1px;background:#c8cdd8;"></div>
-    <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 0 20px;">
-      <span style="font-family:'Inter',sans-serif;font-size:21px;font-weight:700;color:#0a0a0a;letter-spacing:0.01em;">point one zero</span>
-      ${CHEVRON}
-    </div>
-  </div>
+  ${FOOTER_STD}
 </div>`;
 
-const REF_TWOCOL = `<!-- TWOCOL: headline at 140px, rule, two equal columns fill remaining space -->
-<div style="width:1024px;height:1280px;background:${BG};font-family:'Inter',sans-serif;display:flex;flex-direction:column;box-sizing:border-box;overflow:hidden;">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
-  <div style="display:flex;align-items:flex-start;justify-content:space-between;padding:56px 66px 0;flex-shrink:0;">
-    <span style="font-family:'Inter',sans-serif;font-size:13px;font-weight:600;color:#888888;letter-spacing:0.05em;text-transform:uppercase;padding-top:4px;">Where It Gets Real</span>
+const REF_QUOTE = `<!-- QUOTE: logo only header, vertically centered content, 72px quote text -->
+<div style="width:1080px;height:1350px;background:${BG_PAPER};font-family:Inter,sans-serif;display:flex;flex-direction:column;box-sizing:border-box;overflow:hidden;">
+  ${FONT_LINK}
+  <div style="display:flex;justify-content:flex-end;padding:80px 96px 0;flex-shrink:0;">
     ${LOGO}
   </div>
-  <div style="height:60px;flex-shrink:0;"></div>
-  <div style="padding:0 66px;flex-shrink:0;">
-    <div style="font-family:'Inter',sans-serif;font-size:60px;font-weight:800;line-height:1.1;letter-spacing:-2px;color:#0a0a0a;">Two layers decide<br>whether anyone acts.</div>
-  </div>
-  <div style="height:1px;background:#c8cdd8;margin:28px 66px;flex-shrink:0;"></div>
-  <!-- Two columns fill the remaining space -->
-  <div style="display:flex;flex:1;overflow:hidden;padding-bottom:0;">
-    <div style="flex:1;padding:0 32px 0 66px;display:flex;flex-direction:column;">
-      <div style="font-family:'Inter',sans-serif;font-size:50px;font-weight:800;letter-spacing:-1.5px;color:#0a0a0a;margin-bottom:20px;">Trust</div>
-      <p style="font-family:'Inter',sans-serif;font-size:27px;font-weight:400;color:#888888;line-height:1.52;letter-spacing:-0.3px;margin:0;">Earned by showing your work — sources, confidence, and a way to flag mistakes on every answer. Or people re-check by hand.</p>
-    </div>
-    <div style="width:1px;background:#c8cdd8;flex-shrink:0;"></div>
-    <div style="flex:1;padding:0 66px 0 32px;display:flex;flex-direction:column;">
-      <div style="font-family:'Inter',sans-serif;font-size:50px;font-weight:800;letter-spacing:-1.5px;color:#0a0a0a;margin-bottom:20px;">Agentic action</div>
-      <p style="font-family:'Inter',sans-serif;font-size:27px;font-weight:400;color:#888888;line-height:1.52;letter-spacing:-0.3px;margin:0;">When the AI acts, not just answers, design keeps the human in control. This is where AI liability lives.</p>
+  <div style="flex:1;display:flex;flex-direction:column;justify-content:center;padding:0 96px;min-height:0;">
+    <div style="font-family:Inter,sans-serif;font-size:96px;font-weight:600;color:#009FEF;line-height:0.9;letter-spacing:-2px;margin-bottom:16px;">"</div>
+    <p style="font-family:Inter,sans-serif;font-size:72px;font-weight:510;line-height:1.16;letter-spacing:-1.8px;color:#0a0a0a;margin:0;max-width:888px;">Speed without clarity just reaches the wrong outcome faster.</p>
+    <div style="height:48px;"></div>
+    <div style="height:1px;background:rgba(0,0,0,0.08);"></div>
+    <div style="padding-top:20px;">
+      <div style="font-family:Inter,sans-serif;font-size:40px;font-weight:510;color:#0a0a0a;letter-spacing:-0.4px;">Point One Zero</div>
+      <div style="font-family:'Courier New',monospace;font-size:32px;color:#767d87;letter-spacing:0.06em;text-transform:uppercase;margin-top:10px;">Internal · 2026</div>
     </div>
   </div>
-  <div style="padding:0 66px;flex-shrink:0;">
-    <div style="height:1px;background:#c8cdd8;"></div>
-    <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 0 20px;">
-      <span style="font-family:'Inter',sans-serif;font-size:21px;font-weight:700;color:#0a0a0a;letter-spacing:0.01em;">point one zero</span>
-      ${CHEVRON}
-    </div>
-  </div>
+  ${FOOTER_STD}
 </div>`;
 
-const REF_CTA = `<!-- CTA: content near top (same as Cover), flex:1 gap below, no chevron -->
-<div style="width:1024px;height:1280px;background:${BG};font-family:'Inter',sans-serif;display:flex;flex-direction:column;box-sizing:border-box;overflow:hidden;">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
-  <!-- HEADER: eyebrow (no brand dot on CTA) + logo -->
-  <div style="display:flex;align-items:flex-start;justify-content:space-between;padding:56px 66px 0;flex-shrink:0;">
-    <span style="font-family:'Inter',sans-serif;font-size:13px;font-weight:600;color:#888888;letter-spacing:0.05em;text-transform:uppercase;padding-top:4px;">Point One Zero</span>
+const REF_EDITORIAL = `<!-- EDITORIAL: 240px INK drop-cap (NEVER brand), 64px body wraps beside, 40px support -->
+<div style="width:1080px;height:1350px;background:${BG_PAPER};font-family:Inter,sans-serif;display:flex;flex-direction:column;box-sizing:border-box;overflow:hidden;">
+  ${FONT_LINK}
+  <div style="display:flex;align-items:flex-start;justify-content:space-between;padding:80px 96px 0;flex-shrink:0;">
+    <span style="font-family:Inter,sans-serif;font-size:14px;font-weight:600;color:#767d87;letter-spacing:0.05em;text-transform:uppercase;padding-top:6px;">The Reframe</span>
     ${LOGO}
   </div>
-  <!-- SPACER: 60px → positions headline at 140px from top (same as Cover) -->
-  <div style="height:60px;flex-shrink:0;"></div>
-  <!-- CONTENT: headline + lead + button + URL -->
-  <div style="padding:0 66px;flex-shrink:0;">
-    <div style="font-family:'Inter',sans-serif;font-size:82px;font-weight:800;line-height:1.06;letter-spacing:-3px;color:#0a0a0a;">We design AI<br>products people<br><span style="color:#009FEF;">actually use</span></div>
-    <div style="height:34px;"></div>
-    <p style="font-family:'Inter',sans-serif;font-size:32px;font-weight:400;color:#777777;line-height:1.45;letter-spacing:-0.4px;margin:0;max-width:840px;">The full 12-layer framework — built for the leaders shipping enterprise AI.</p>
+  <div style="padding:0 96px;flex-shrink:0;margin-top:24px;">
+    <div style="overflow:hidden;">
+      <span style="font-family:Inter,sans-serif;font-size:240px;font-weight:400;line-height:0.82;color:#0a0a0a;float:left;margin:12px 24px -8px -6px;">A</span>
+      <p style="font-family:Inter,sans-serif;font-size:64px;font-weight:400;line-height:1.22;letter-spacing:-0.6px;color:#0a0a0a;margin:0;">n AI chat is not a search bar. It must earn <span style="color:#009FEF;">trust</span>, stay compliant, and prove its value — all through a single screen.</p>
+    </div>
+    <div style="height:28px;"></div>
+    <p style="font-family:Inter,sans-serif;font-size:40px;font-weight:400;color:#3f3f46;line-height:1.45;letter-spacing:-0.3px;margin:0;max-width:888px;">The difference between adoption and abandonment is almost never the intelligence of the model. It is whether people could use it on the first day without a training session.</p>
+  </div>
+  <div style="flex:1;"></div>
+  ${FOOTER_STD}
+</div>`;
+
+const REF_TWOCOL = `<!-- TWOCOL: 64px headline + rule + two equal columns with 64px heading + 40px body -->
+<div style="width:1080px;height:1350px;background:${BG_PAPER};font-family:Inter,sans-serif;display:flex;flex-direction:column;box-sizing:border-box;overflow:hidden;">
+  ${FONT_LINK}
+  <div style="display:flex;align-items:flex-start;justify-content:space-between;padding:80px 96px 0;flex-shrink:0;">
+    <span style="font-family:Inter,sans-serif;font-size:14px;font-weight:600;color:#767d87;letter-spacing:0.05em;text-transform:uppercase;padding-top:6px;">Where It Gets Real</span>
+    ${LOGO}
+  </div>
+  <div style="padding:0 96px;flex-shrink:0;margin-top:24px;">
+    <h2 style="font-family:Inter,sans-serif;font-size:64px;font-weight:600;line-height:1.14;letter-spacing:-1.6px;color:#0a0a0a;margin:0;">Two layers decide<br>whether anyone acts.</h2>
+  </div>
+  <div style="height:1px;background:rgba(0,0,0,0.08);margin:32px 96px;flex-shrink:0;"></div>
+  <div style="display:flex;flex:1;overflow:hidden;min-height:0;">
+    <div style="flex:1;padding:0 40px 0 96px;display:flex;flex-direction:column;">
+      <div style="font-family:Inter,sans-serif;font-size:64px;font-weight:600;letter-spacing:-1.4px;color:#0a0a0a;margin-bottom:24px;">Trust</div>
+      <p style="font-family:Inter,sans-serif;font-size:40px;font-weight:400;color:#3f3f46;line-height:1.42;letter-spacing:-0.3px;margin:0;">Earned by showing your work — sources, confidence, and a way to flag mistakes on every answer. Or people re-check by hand.</p>
+    </div>
+    <div style="width:1px;background:linear-gradient(180deg,transparent,rgba(0,0,0,0.16) 20%,rgba(0,0,0,0.16) 80%,transparent);flex-shrink:0;"></div>
+    <div style="flex:1;padding:0 96px 0 40px;display:flex;flex-direction:column;">
+      <div style="font-family:Inter,sans-serif;font-size:64px;font-weight:600;letter-spacing:-1.4px;color:#0a0a0a;margin-bottom:24px;">Agentic action</div>
+      <p style="font-family:Inter,sans-serif;font-size:40px;font-weight:400;color:#3f3f46;line-height:1.42;letter-spacing:-0.3px;margin:0;">When the AI acts, not just answers, design keeps the human in control. This is where AI liability lives.</p>
+    </div>
+  </div>
+  ${FOOTER_STD}
+</div>`;
+
+const REF_CTA = `<!-- CTA: 1080x1350, warm paper + veil, 88px headline, dark pill button, flex:1 gap, no swipe -->
+<div style="width:1080px;height:1350px;background:${BG_VEIL};font-family:Inter,sans-serif;display:flex;flex-direction:column;box-sizing:border-box;overflow:hidden;">
+  ${FONT_LINK}
+  <div style="display:flex;align-items:flex-start;justify-content:space-between;padding:80px 96px 0;flex-shrink:0;">
+    <span style="font-family:Inter,sans-serif;font-size:14px;font-weight:600;color:#767d87;letter-spacing:0.05em;text-transform:uppercase;padding-top:6px;">Point One Zero</span>
+    ${LOGO}
+  </div>
+  <div style="padding:0 96px;flex-shrink:0;margin-top:24px;">
+    <h2 style="font-family:Inter,sans-serif;font-size:88px;font-weight:600;line-height:1.08;letter-spacing:-3.2px;color:#0a0a0a;margin:0;">We design AI<br>products people<br><span style="color:#009FEF;">actually use</span></h2>
     <div style="height:44px;"></div>
-    <div style="display:inline-flex;align-items:center;background:#0a0a0a;border-radius:9999px;padding:18px 44px;flex-shrink:0;">
-      <span style="font-family:'Inter',sans-serif;font-size:27px;font-weight:700;color:#ffffff;letter-spacing:0.03em;">Follow for more insights</span>
+    <p style="font-family:Inter,sans-serif;font-size:44px;font-weight:400;color:#3f3f46;line-height:1.45;letter-spacing:-0.4px;margin:0;max-width:888px;">The full 12-layer framework — built for the leaders shipping enterprise AI.</p>
+    <div style="height:80px;"></div>
+    <div style="display:inline-flex;align-items:center;height:96px;padding:0 48px;border-radius:9999px;background:linear-gradient(180deg,rgba(255,255,255,0.14) 0%,rgba(255,255,255,0) 60%),#0a0a0a;box-shadow:rgba(0,0,0,0.06) 0 12px 24px -6px,rgba(0,0,0,0.12) 0 4px 8px -2px,rgba(0,0,0,0.20) 0 0 0 1px,inset 0 1px 0 rgba(255,255,255,0.28),inset 0 -1px 0 rgba(0,0,0,0.50);flex-shrink:0;">
+      <span style="font-family:Inter,sans-serif;font-size:34px;font-weight:510;color:#fcfbf8;letter-spacing:0.02em;">Follow for more insights</span>
     </div>
-    <div style="height:32px;"></div>
-    <div style="font-family:'Inter',sans-serif;font-size:23px;font-weight:400;color:#888888;letter-spacing:0.01em;">pointonezero.com</div>
+    <div style="height:36px;"></div>
+    <div style="font-family:'Courier New',monospace;font-size:32px;color:#767d87;letter-spacing:0.02em;">pointonezero.com</div>
   </div>
-  <!-- flex:1 AFTER content — creates empty space below URL (matching reference PDF) -->
-  <div style="flex:1;"></div>
-  <!-- FOOTER: no chevron on last slide -->
-  <div style="padding:0 66px;flex-shrink:0;">
-    <div style="height:1px;background:#c8cdd8;"></div>
-    <div style="padding:16px 0 20px;">
-      <span style="font-family:'Inter',sans-serif;font-size:21px;font-weight:700;color:#0a0a0a;letter-spacing:0.01em;">point one zero</span>
-    </div>
-  </div>
+  <div style="flex:1;min-height:0;"></div>
+  ${FOOTER_CTA}
 </div>`;
 
 /* ─── System prompt ──────────────────────────────────────────────────────────── */
 const SYSTEM_PROMPT = `You are a senior visual designer at Point One Zero (POZ).
-Output production-ready HTML for a single 1024×1280px LinkedIn carousel slide that EXACTLY matches the reference PDF (LinkedIn_Post_Reference.pdf).
+Generate production-ready HTML for ONE 1080×1350px LinkedIn carousel slide matching the reference images.
 
-════════════════════════════════════════════
-CRITICAL LAYOUT RULE — READ THIS FIRST
-════════════════════════════════════════════
-Every slide uses this structure derived from generate_carousel.py (scaled 1350→1280px):
+══════════════════════════════════════════════════
+CANVAS — ABSOLUTE RULES
+══════════════════════════════════════════════════
+Width: 1080px. Height: 1350px.
 
-  HEADER  → padding-top:56px, eyebrow+logo at ~80px from top
-  SPACER  → height:60px (fixed) → positions headline at EXACTLY 140px from top
-  CONTENT → starts at 140px from top
-  flex:1  → empty gap (fills remaining space, pushes footer down)
-  FOOTER  → pinned at bottom, ~86px tall
+WARM PAPER (all slides except Cover/CTA):
+  background: linear-gradient(180deg, #fdfcfa 0%, #fcfbf8 55%, #faf9f5 100%)
+  Very subtle warm-cream gradient. NOT white. NOT grey. NOT blue-grey.
 
-COVER and CTA: the flex:1 goes AFTER the content (not before).
-This creates the characteristic large empty space BELOW the text, matching the reference PDF.
-The empty space is NOT a mistake — it is the correct design.
+WITH VEIL (Cover + CTA — add atmospheric blue top-right corner):
+  background: radial-gradient(ellipse 75% 50% at 95% -5%, rgba(0,159,239,0.075), transparent 65%),
+              linear-gradient(180deg, #fdfcfa 0%, #fcfbf8 55%, #faf9f5 100%)
 
-════════════════════════════════════════════
-DESIGN TOKENS (from generate_carousel.py)
-════════════════════════════════════════════
-Canvas:    1024×1280px
-Margin:    66px (left and right)
-BG:        linear-gradient(168deg, #dae0ee 0%, #edf0f6 18%, #f5f4f0 50%, #ece7db 100%)
-INK:       #0a0a0a   — headlines, wordmark, logo, button bg
-BRAND:     #009FEF   — ONE featured element per slide
-GREY:      #888888   — eyebrow, descriptions, body, attribution, URL
-DARK:      #777777   — lead paragraph (Cover, CTA)
-RULE:      #c8cdd8   — all 1px dividers
+NEVER: #ffffff, #f5f4f0, #dae0ee, grey or dark backgrounds.
 
-════════════════════════════════════════════
-FONT (Inter only — always load first)
-════════════════════════════════════════════
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
-MUST be first child of root div.
+══════════════════════════════════════════════════
+FONT — ALWAYS Inter Variable from rsms.me
+══════════════════════════════════════════════════
+<link href="https://rsms.me/inter/inter.css" rel="stylesheet"> — MUST be FIRST child.
+font-family: Inter, sans-serif on every element.
+NEVER: Bebas Neue, Arial, system-ui.
 
-NEVER use: Bebas Neue, Impact, Arial Narrow, system fonts.
-font-family:'Inter',sans-serif on every element.
+══════════════════════════════════════════════════
+TOKENS
+══════════════════════════════════════════════════
+Colors:
+  INK:    #0a0a0a — headlines, logo, wordmark, button bg
+  MUTED:  #3f3f46 — lead + body text
+  SUBTLE: #767d87 — eyebrow labels
+  BRAND:  #009FEF — ONE element per slide ONLY
+  CANVAS: #fcfbf8 — button text
 
-Sizes (from Python script, scaled 0.948):
-  236px 800 → stat giant number
-  156px 800 → editorial drop cap
-  148px 800 → definition WORD (uppercase, line-height:0.9)
-   88px 800 → cover headline (line-height:1.04)
-   82px 800 → cta headline (line-height:1.06)
-   62px 800 → list headline (line-height:1.1)
-   60px 700 → quote text (line-height:1.14)
-   60px 800 → twocol headline (line-height:1.1)
-   50px 800 → twocol column heading
-   47px 700 → editorial text beside drop cap (line-height:1.22)
-   44px 800 → stat label (line-height:1.22)
-   42px 800 → list item name
-   40px 700 → definition sub-headline (line-height:1.28)
-   34px 700 → quote attribution name
-   32px 400 → cover lead (line-height:1.52)
-   32px 400 → cta lead (line-height:1.45)
-   29px 400 → definition body, editorial body, stat body (line-height:1.52)
-   28px 400 → list description, twocol column body (line-height:1.4)
-   27px 700 → cta pill button text
-   23px 400 → cta URL
-   21px 700 → footer wordmark
-   20px 600 → list item number (brand blue)
-   13px 600 → eyebrow label
+Layout:
+  Horizontal padding: 96px both sides
+  Header top padding: 80px
+  Content starts: margin-top:24px after header (~145px from top)
+  Logo: 65×65px top-right in header
 
-Tracking:
-  ≥80px: letter-spacing:-3px to -13px (negative, tighten)
-  40-79px: -0.8px to -2px
-  Body: -0.3px to -0.4px
-  Eyebrow: +0.05em (positive, open)
+Rule colors:
+  rgba(0,0,0,0.08)  — list rows, section dividers
+  rgba(0,0,0,0.16)  — footer rule, vertical col divider
+  linear-gradient(90deg,#009FEF,transparent) — definition accent rule ONLY
 
-════════════════════════════════════════════
-LOGO (62px, INK #0a0a0a, top-right ALL slides)
-════════════════════════════════════════════
-<div style="width:62px;height:62px;flex-shrink:0;"><svg viewBox="0 0 110 110" fill="none" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%;display:block;"><path fill="#0a0a0a" fill-rule="evenodd" d="M15,28 H67 Q82,28 82,43 V95 Q82,110 67,110 H15 Q0,110 0,95 V43 Q0,28 15,28 Z M43,0 H95 Q110,0 110,15 V67 Q110,82 95,82 H43 Q28,82 28,67 V15 Q28,0 43,0 Z"/></svg></div>
+══════════════════════════════════════════════════
+TYPE SCALE (exact pixels — 1080px canvas, SKILL.md §4.3 §8)
+══════════════════════════════════════════════════
+COVER headline:      124px  wt:600  ls:-5px    lh:1.06
+CTA headline:         88px  wt:600  ls:-3.2px  lh:1.08
+Stat label / col hd:  64px  wt:600  ls:-1.6px  lh:1.14
+List headline:        64px  wt:600  ls:-1.6px  lh:1.14
+Definition WORD:     220px  wt:600  ls:-10px   lh:0.90  uppercase INK
+Stat value:          440px  wt:600  ls:-22px   lh:0.86  brand blue
+Stat suffix:          96px  wt:600  brand opacity:0.55
+Lead paragraph:       44px  wt:400  ls:-0.4px  lh:1.45  #3f3f46
+Body paragraph:       40px  wt:400  ls:-0.3px  lh:1.45  #3f3f46
+Footnote/source:      32px  wt:400  monospace  uppercase #767d87
+Footer wordmark:      32px  wt:510  ls:-0.4px  #0a0a0a
+Eyebrow:              14px  wt:600  ls:+0.05em uppercase #767d87
+Quote text:           72px  wt:510  ls:-1.8px  lh:1.16
+Editorial body:       64px  wt:400  ls:-0.6px  lh:1.22
+Drop-cap letter:     240px  wt:400  lh:0.82    #0a0a0a (NEVER brand!)
+List number:          24px  monospace  #009FEF
+List item name:       48px  wt:600  ls:-1.2px  #0a0a0a
+List description:     36px  wt:400  ls:-0.3px  lh:1.42  #767d87
+CTA button text:      34px  wt:510  ls:+0.02em #fcfbf8
 
-════════════════════════════════════════════
-CHEVRON (all slides except CTA/last)
-════════════════════════════════════════════
-<svg width="44" height="44" viewBox="0 0 44 44" fill="none" style="flex-shrink:0;"><path d="M15 9L31 22L15 35" stroke="#0a0a0a" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+══════════════════════════════════════════════════
+LOGO (65×65px — ALL slides, top-right)
+══════════════════════════════════════════════════
+<div style="width:65px;height:65px;flex-shrink:0;"><svg viewBox="0 0 110 110" fill="none" style="width:100%;height:100%;display:block;"><path fill="#0a0a0a" fill-rule="evenodd" d="M15,28 H67 Q82,28 82,43 V95 Q82,110 67,110 H15 Q0,110 0,95 V43 Q0,28 15,28 Z M43,0 H95 Q110,0 110,15 V67 Q110,82 95,82 H43 Q28,82 28,67 V15 Q28,0 43,0 Z"/></svg></div>
 
-════════════════════════════════════════════
+══════════════════════════════════════════════════
 FOOTER (all slides)
-════════════════════════════════════════════
-<div style="padding:0 66px;flex-shrink:0;">
-  <div style="height:1px;background:#c8cdd8;"></div>
-  <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 0 20px;">
-    <span style="font-family:'Inter',sans-serif;font-size:21px;font-weight:700;color:#0a0a0a;letter-spacing:0.01em;">point one zero</span>
-    [CHEVRON — omit on CTA/last slide]
+══════════════════════════════════════════════════
+<div style="padding:0 96px;flex-shrink:0;">
+  <div style="height:1px;background:linear-gradient(90deg,transparent,rgba(0,0,0,0.16) 12%,rgba(0,0,0,0.16) 88%,transparent);flex-shrink:0;"></div>
+  <div style="display:flex;justify-content:space-between;align-items:center;padding:20px 0 24px;">
+    <span style="font-family:Inter,sans-serif;font-size:32px;font-weight:510;color:#0a0a0a;letter-spacing:-0.4px;">point one zero</span>
+    [SWIPE or nothing]
   </div>
 </div>
+Swipe (non-last slides): <span style="font-size:32px;font-weight:700;color:#0a0a0a;line-height:1;">›</span>
+Last slide (CTA): omit swipe entirely.
 
-════════════════════════════════════════════
+══════════════════════════════════════════════════
 EIGHT REFERENCE SLIDES — MATCH EXACTLY
-════════════════════════════════════════════
+══════════════════════════════════════════════════
 
 ${REF_COVER}
 
@@ -432,199 +355,139 @@ ${REF_TWOCOL}
 
 ${REF_CTA}
 
-════════════════════════════════════════════
-ARCHETYPE-SPECIFIC LAYOUT NOTES
-════════════════════════════════════════════
+══════════════════════════════════════════════════
+ARCHETYPE LAYOUT RULES
+══════════════════════════════════════════════════
 
-COVER & CTA — THE CRITICAL SPACING RULE:
-  Structure: header → 60px spacer → content → flex:1 → footer
-  The flex:1 is AFTER the text content.
-  This creates ~500px of empty space below the last text line — this is CORRECT.
-  Do NOT put flex:1 before the headline. It would push everything to the bottom, which is WRONG.
+COVER:
+  Root bg: WITH veil. Header: padding-top:80px, brand-dot (10px circle #009FEF glow) + eyebrow + logo.
+  Content (margin-top:24px, padding 0 96px):
+    Headline: 124px wt:600 ls:-5px lh:1.06 INK, up to 3 lines with <br>. ONE phrase = #009FEF.
+    height:44px gap.
+    Lead: 44px wt:400 #3f3f46 max-width:888px.
+  flex:1 AFTER content (large empty area — CORRECT, not a mistake).
+  Footer: wordmark + ›.
 
-LIST — ROW DISTRIBUTION:
-  After headline + 24px + rule, use flex:1 container with flex-direction:column.
-  Each row is flex:1, giving equal height (~217px per row for 4 items).
-  Row layout (fixed column widths):
-    number: width:40px, Inter 600 20px #009FEF
-    name:   width:390px, Inter 800 42px #0a0a0a letter-spacing:-1px
-    desc:   flex:1, Inter 400 28px #888888 line-height:1.4
-  Separator rule: height:1px background:#c8cdd8 flex-shrink:0 between rows.
-  The last rule is AFTER the last row (then footer section follows).
+LIST:
+  Header: eyebrow + logo.
+  Content: margin-top:24px, headline 64px wt:600 ls:-1.6px.
+  Rule: height:1px rgba(0,0,0,0.08) margin:28px 96px 0 flex-shrink:0.
+  Rows: flex:1 padding:0 96px flex-direction:column min-height:0.
+    Parse "Name: description" pairs from body → 3-4 rows.
+    Each row: flex:1 display:flex align-items:center.
+      Number (24px mono brand #009FEF, width:52px) | Name (48px wt:600, width:380px) | Desc (36px wt:400 #767d87, flex:1).
+    Rule between rows + after last row: height:1px rgba(0,0,0,0.08) flex-shrink:0.
+  Footer + ›.
 
-DEFINITION — KEYWORD SIZE:
-  The WORD is 148px Inter 800, line-height:0.9, uppercase.
-  Accent rule: width:90px height:4px background:#009FEF, margin:28px 0 0.
-  Sub-headline: Inter 700 40px (bold, not regular).
-  Body: Inter 400 29px #888888.
+DEFINITION:
+  Header + logo. Content margin-top:24px padding 0 96px.
+  WORD: 220px wt:600 ls:-10px lh:0.90 #0a0a0a UPPERCASE. Extract 1 word from title.
+  Accent rule: width:96px height:2px linear-gradient(90deg,#009FEF,transparent) margin:28px 0 0.
+  height:20px gap.
+  Definition: 44px wt:510 ls:-0.4px lh:1.28 #0a0a0a max-width:888px. First sentence.
+  height:20px gap.
+  Body: 40px wt:400 #3f3f46 lh:1.45 max-width:888px. Second sentence.
+  flex:1. Footer + ›.
 
-STAT — NUMBER SCALE:
-  Giant number: 236px Inter 800, line-height:0.86, letter-spacing:-13px.
-  Suffix: 95px Inter 700, #888888, align to baseline of number.
-  48px gap after number before label.
+STAT:
+  Header + logo. Content margin-top:24px padding 0 96px.
+  Number row: display:flex align-items:flex-end.
+    Val: 440px wt:600 ls:-22px lh:0.86 #009FEF. Suf: 96px wt:600 #009FEF opacity:0.55 pb:8px.
+  height:48px gap. Label: 64px wt:600 ls:-1.6px lh:1.14 #0a0a0a max-width:888px.
+  height:24px gap. Body: 40px wt:400 #3f3f46 max-width:888px.
+  flex:1. Footer + ›.
 
-EDITORIAL — DROP CAP:
-  Drop cap letter: 156px Inter 800, #009FEF, line-height:0.88, flex-shrink:0.
-  Text beside it: Inter 700 47px, padding-top:8px, 14px gap from cap.
-  The text WRAPS beside the cap (not below it).
-  Body paragraph: Inter 400 29px #888888 below the cap row, height:24px gap.
+QUOTE:
+  Header: logo ONLY right-aligned (NO eyebrow). flex:1 content area with justify-content:center padding:0 96px.
+  Opening glyph: 96px wt:600 #009FEF lh:0.9 ls:-2px mb:16px — the " character.
+  Quote: 72px wt:510 ls:-1.8px lh:1.16 #0a0a0a max-width:888px. Body text as quote.
+  height:48px gap. Rule: height:1px rgba(0,0,0,0.08). padding-top:20px for attribution.
+  Name: 40px wt:510 #0a0a0a ls:-0.4px. Source: 32px monospace #767d87 uppercase mt:10px.
+  Footer + ›.
 
-QUOTE — VERTICAL CENTERING:
-  Header (logo only, right-aligned).
-  flex:1 on content area with justify-content:center.
-  No fixed spacer needed — the quote block is perfectly centered vertically.
-  Opening glyph: " character, 100px Inter 800, #009FEF, line-height:0.9.
-  Quote text: 60px Inter 700, max-width:840px.
-  Attribution: 1px rule + name (34px 700) + source (20px 400 uppercase grey).
+EDITORIAL:
+  Header: eyebrow + logo. Content margin-top:24px padding:0 96px.
+  Drop-cap block: overflow:hidden wrapper.
+    Cap: float:left 240px wt:400 lh:0.82 color:#0a0a0a margin:12px 24px -8px -6px.
+    Cap MUST be #0a0a0a (INK) — NEVER #009FEF — this is a design law.
+    Paragraph: 64px wt:400 ls:-0.6px lh:1.22 #0a0a0a. First letter is the cap.
+      Include ONE word/phrase as color:#009FEF inline.
+  height:28px gap. Body: 40px wt:400 #3f3f46 max-width:888px.
+  flex:1. Footer + ›.
 
-TWOCOL — COLUMN WIDTHS:
-  Headline (60px 800), then 1px horizontal rule at margin:28px 66px.
-  Two-column flex row fills flex:1 (no additional flex:1 needed before footer).
-  Left: padding 0 32px 0 66px | Right: padding 0 66px 0 32px.
-  Vertical rule: 1px #c8cdd8 at center.
-  Column heading: 50px 800 | Body: 27px 400 #888888.
+TWOCOL:
+  Header + logo. Headline margin-top:24px 64px wt:600.
+  Rule: height:1px rgba(0,0,0,0.08) margin:32px 96px flex-shrink:0.
+  Columns: display:flex flex:1 overflow:hidden min-height:0.
+    Left (flex:1 padding:0 40px 0 96px flex-direction:column): heading 64px wt:600 + body 40px #3f3f46.
+    Vertical rule: 1px linear-gradient(180deg,transparent,rgba(0,0,0,0.16) 20%,rgba(0,0,0,0.16) 80%,transparent).
+    Right (flex:1 padding:0 96px 0 40px flex-direction:column): same structure.
+  Footer + ›.
 
-════════════════════════════════════════════
-OUTPUT RULE
-════════════════════════════════════════════
-Return ONLY the <div>. No markdown, no explanation, no wrapper.
-<link> MUST be the first child of root div.
-Replace ALL sample content with actual slide content.
-Match ALL sizes, colors, spacing to the reference block.`;
+  GRID MODE (6+ items like "12 layers"):
+    After headline + rule: two-column numbered grid, flex:1 rows.
+    Each row: display:flex height:~80px border-bottom:1px rgba(0,0,0,0.08).
+    Left cell: padding 0 40px 0 96px — number (24px mono brand) + name (36px wt:600 ls:-0.8px #0a0a0a).
+    Right cell: padding 0 96px 0 40px — same structure. Items go L1,R1,L2,R2... across pairs.
 
-/* ─── Per-slide prompt builder ───────────────────────────────────────────────── */
+CTA:
+  Root bg: WITH veil. Header: eyebrow "Point One Zero" + logo. NO brand-dot on CTA.
+  Content margin-top:24px padding:0 96px.
+  Headline: 88px wt:600 ls:-3.2px lh:1.08 #0a0a0a. ONE phrase = #009FEF.
+  height:44px gap. Lead: 44px wt:400 #3f3f46 max-width:888px.
+  height:80px gap.
+  Pill button: inline-flex, height:96px padding:0 48px border-radius:9999px,
+    bg: linear-gradient(180deg,rgba(255,255,255,0.14) 0%,rgba(255,255,255,0) 60%),#0a0a0a,
+    box-shadow: complex (see reference). Text: 34px wt:510 #fcfbf8 ls:0.02em.
+  height:36px gap. URL: 32px monospace #767d87 ls:0.02em — bare domain only.
+  flex:1 AFTER content (large empty space — correct).
+  Footer: wordmark ONLY — NO › on last slide.
+
+══════════════════════════════════════════════════
+OUTPUT RULES
+══════════════════════════════════════════════════
+1. Return ONLY the <div>. No markdown fence, no explanation.
+2. <link rsms.me inter> MUST be the first child of root div.
+3. Replace ALL sample text with actual slide content.
+4. Match ALL sizes, colors, letter-spacing to the reference block.
+5. BRAND #009FEF on ONE element only.
+6. Warm paper background — NEVER pure white.`;
+
+/* ─── Per-slide prompt ────────────────────────────────────────────────────────── */
 function buildSlidePrompt(slide: Slide, total: number): string {
   const arch = getArchetype(slide, total);
   const isLast = slide.position === total;
 
-  const instructions: Record<Arch, string> = {
-    COVER: `Archetype: COVER.
-Structure: header → 60px spacer → content → flex:1 → footer
-The flex:1 is AFTER content. Do NOT put it before the headline.
-Header: 9px brand dot + eyebrow (2-3 word topic, all-caps grey 13px 600) + 62px INK logo (right side, no counter shown).
-Headline: Inter 800 88px line-height:1.04 letter-spacing:-3.5px #0a0a0a, max 3 lines with <br>. ONE word/phrase = color:#009FEF.
-Height:44px spacer after headline.
-Lead: Inter 400 32px #777777 max-width:840px line-height:1.52 letter-spacing:-0.4px. Use body text.
-Then flex:1 (empty gap). Then footer + chevron.`,
-
-    LIST: `Archetype: LIST.
-Structure: header → 60px spacer → headline → 24px + rule → flex:1 rows → footer
-Header: eyebrow (2-3 words, all-caps grey 13px 600) + 62px INK logo.
-Headline: Inter 800 62px line-height:1.1 letter-spacing:-2px #0a0a0a, max 2 lines. Use title.
-flex:1 container (display:flex;flex-direction:column) holding rows:
-  Each row: flex:1 (equal height, ~217px each), display:flex, align-items:center.
-  Columns (fixed widths, no gap):
-    Number: width:40px Inter 600 20px #009FEF ("01","02","03"...)
-    Name:   width:390px Inter 800 42px #0a0a0a letter-spacing:-1px
-    Desc:   flex:1 Inter 400 28px #888888 line-height:1.4
-  Rule after each row: height:1px background:#c8cdd8 flex-shrink:0.
-Parse body into 3-4 items. Each "Name: description" becomes a row.
-Then footer + chevron.`,
-
-    DEFINITION: `Archetype: DEFINITION.
-Structure: header → 60px spacer → content → flex:1 → footer
-Header: eyebrow (2-3 words, all-caps) + 62px INK logo.
-Keyword: Inter 800 148px uppercase #0a0a0a line-height:0.9 letter-spacing:-8px. Use FIRST WORD of title (1 word).
-Accent rule: width:90px height:4px background:#009FEF margin:28px 0 0.
-Height:22px spacer.
-Sub-headline: Inter 700 40px #0a0a0a line-height:1.28 letter-spacing:-0.8px max-width:840px. First sentence of body.
-Height:20px spacer.
-Body: Inter 400 29px #888888 line-height:1.52 letter-spacing:-0.3px max-width:840px. Second sentence.
-flex:1. Footer + chevron.`,
-
-    STAT: `Archetype: STAT.
-Structure: header → 60px spacer → content → flex:1 → footer
-Header: eyebrow (2-3 words) + 62px INK logo.
-Extract key NUMBER from title/body (any digit sequence + suffix like %, x, k).
-Number: Inter 800 236px #009FEF line-height:0.86 letter-spacing:-13px.
-Suffix: Inter 700 95px #888888 line-height:1 letter-spacing:-3px padding-bottom:6px (align to baseline).
-Height:48px spacer.
-Label: Inter 800 44px #0a0a0a line-height:1.22 letter-spacing:-1.5px max-width:840px. Title as label.
-Height:22px.
-Body: Inter 400 27px #888888 line-height:1.52 letter-spacing:-0.3px max-width:840px. Body text.
-flex:1. Footer + chevron.`,
-
-    QUOTE: `Archetype: QUOTE.
-Structure: header (logo only, right) → flex:1 (vertically centers the quote block) → footer
-Header: 62px INK logo right-aligned only. No eyebrow. No fixed spacer.
-Content area: flex:1, display:flex, flex-direction:column, justify-content:center, padding:0 66px.
-  Opening glyph: " — Inter 800 100px #009FEF line-height:0.9 letter-spacing:-2px margin-bottom:14px.
-  Quote: Inter 700 60px #0a0a0a max-width:840px line-height:1.14 letter-spacing:-1.8px. Body text as quote.
-  Height:44px spacer.
-  1px rule #c8cdd8 full width.
-  Name: Inter 700 34px #0a0a0a letter-spacing:-0.5px padding-top:20px.
-  Source: Inter 400 20px #888888 uppercase letter-spacing:0.04em margin-top:8px.
-Footer + chevron.`,
-
-    EDITORIAL: `Archetype: EDITORIAL.
-Structure: header → 60px spacer → drop-cap block → body → flex:1 → footer
-Header: eyebrow (2-3 words) + 62px INK logo.
-Drop-cap row: display:flex align-items:flex-start gap:14px.
-  Cap: FIRST LETTER of body — Inter 800 156px #009FEF line-height:0.88 letter-spacing:-4px flex-shrink:0.
-  Text: Inter 700 47px #0a0a0a line-height:1.22 letter-spacing:-0.8px padding-top:8px.
-    Include ONE key word/phrase as color:#009FEF inline.
-Height:24px spacer.
-Body: Inter 400 29px #888888 max-width:840px line-height:1.52 letter-spacing:-0.3px.
-flex:1. Footer + chevron.`,
-
-    TWOCOL: `Archetype: TWOCOL.
-Structure: header → 60px spacer → headline → rule → two-column flex:1 → footer
-Header: eyebrow (2-3 words) + 62px INK logo.
-Headline: Inter 800 60px #0a0a0a line-height:1.1 letter-spacing:-2px, max 2 lines.
-1px rule #c8cdd8 at margin:28px 66px flex-shrink:0.
-Two-column flex row: flex:1, overflow:hidden, no padding-bottom.
-  LEFT (flex:1 padding:0 32px 0 66px flex-direction:column):
-    Heading: Inter 800 50px #0a0a0a letter-spacing:-1.5px margin-bottom:20px.
-    Body: Inter 400 27px #888888 line-height:1.52 letter-spacing:-0.3px.
-  Vertical rule: 1px #c8cdd8 flex-shrink:0.
-  RIGHT (flex:1 padding:0 66px 0 32px flex-direction:column):
-    Same structure.
-For 6+ items (dense content), use 2-column numbered grid inside the two-column flex.
-Footer + chevron.
-
-IF grid mode (6+ items):
-  Each grid-row: display:flex, 1px rule below.
-  Left cell: blue number 20px 600 (width:40px) + name 32px 700 #0a0a0a (flex:1), padding:18px 32px 18px 66px.
-  Right cell: blue number 20px 600 (width:40px) + name 32px 700 #0a0a0a (flex:1), padding:18px 66px 18px 32px.`,
-
-    CTA: `Archetype: CTA.
-Structure: header → 60px spacer → content → flex:1 → footer (NO chevron)
-Background: ${BG} — WARM PAPER, NOT dark, NOT blue.
-Header: eyebrow "Point One Zero" (Inter 600 13px #888888 uppercase) + 62px INK logo. No brand dot.
-Fixed 60px spacer after header.
-Content:
-  Headline: Inter 800 82px #0a0a0a line-height:1.06 letter-spacing:-3px, max 3 lines with <br>. ONE phrase = color:#009FEF.
-  Height:34px.
-  Lead: Inter 400 32px #777777 max-width:840px line-height:1.45 letter-spacing:-0.4px. Body text.
-  Height:44px.
-  Pill button: display:inline-flex background:#0a0a0a border-radius:9999px padding:18px 44px flex-shrink:0.
-    Text: Inter 700 27px #ffffff letter-spacing:0.03em. "Follow for more insights" or relevant CTA.
-  Height:32px.
-  URL: Inter 400 23px #888888 letter-spacing:0.01em "pointonezero.com".
-flex:1 AFTER content (empty space below URL).
-Footer: rule + "point one zero" — NO chevron (last slide).`,
+  const archNotes: Record<Arch, string> = {
+    COVER: `COVER — Use veil bg. Brand-dot in eyebrow. 124px headline (wt:600 ls:-5px lh:1.06). ONE phrase brand blue. 44px lead #3f3f46. flex:1 after content.`,
+    LIST: `LIST — 64px headline. Rule. flex:1 rows container. Parse body "Name: description" → 3-4 rows. Each: 24px mono number (brand) | 48px wt:600 name | 36px wt:400 #767d87 desc. Rules between rows.`,
+    DEFINITION: `DEFINITION — Extract 1-word UPPERCASE keyword. 220px wt:600 ls:-10px lh:0.90 INK word. Brand accent rule (96px wide, gradient to transparent). 44px wt:510 definition. 40px #3f3f46 body.`,
+    STAT: `STAT — Extract number+suffix from content. 440px brand blue stat. 96px suffix (opacity 0.55). 64px label wt:600. 40px #3f3f46 body. flex:1 after.`,
+    QUOTE: `QUOTE — Logo only header (NO eyebrow). Vertically centered content. 96px brand " glyph. 72px wt:510 quote. Attribution below rule.`,
+    EDITORIAL: `EDITORIAL — Float:left 240px INK drop-cap (MUST be #0a0a0a, NOT brand blue). 64px body wraps beside it. ONE brand word inline. 40px #3f3f46 support paragraph.`,
+    TWOCOL: `TWOCOL — 64px headline + rule + two columns. If 6+ items use GRID MODE with numbered pairs. Otherwise: 64px column heading + 40px #3f3f46 body.`,
+    CTA: `CTA — Veil bg. No brand-dot. 88px headline. 44px lead. Dark pill button (h:96px 34px text). Bare domain URL. flex:1 after. Footer: wordmark ONLY, NO › (last slide = ${isLast}).`,
   };
 
-  return `Generate ONE 1024×1280px LinkedIn carousel slide. Match LinkedIn_Post_Reference.pdf exactly.
+  return `Generate ONE 1080×1350px carousel slide. Match reference exactly.
 
-SLIDE DATA:
+SLIDE:
   Position: ${slide.position} of ${total}
-  Type: ${slide.type} → Archetype: ${arch}
+  Archetype: ${arch}
   Title: "${slide.title}"
   Body: "${slide.body}"
-  Last slide: ${isLast}
 
-${instructions[arch]}
+${archNotes[arch]}
 
-SPACING CHECKLIST:
-✓ Root: width:1024px height:1280px background:linear-gradient(168deg,#dae0ee 0%,#edf0f6 18%,#f5f4f0 50%,#ece7db 100%) flex-direction:column overflow:hidden
-✓ <link> Inter 400,600,700,800 is the FIRST child of root div
-✓ Header padding-top:56px, 62px INK logo
-✓ 60px fixed spacer after header (except QUOTE which uses flex:1 to center)
-✓ COVER and CTA: flex:1 is AFTER content, NOT before headline
-✓ BRAND #009FEF on ONE element only
-✓ Footer: "point one zero" 21px 700 #0a0a0a, rule #c8cdd8 ${isLast ? "— NO chevron" : "— WITH chevron"}
-✓ All content uses actual slide data — no generic filler text
+CHECKLIST before output:
+✓ 1080×1350px, warm paper background (NOT white, NOT blue-grey)
+✓ <link rsms.me/inter/inter.css> is FIRST child
+✓ 96px horizontal padding throughout
+✓ 65px INK logo top-right
+✓ Header padding-top:80px, margin-top:24px before content
+✓ Brand #009FEF on ONE element only
+✓ Footer: "point one zero" 32px wt:510 left${isLast ? ", NO swipe (last slide)" : ", › 32px wt:700 right"}
+✓ All content replaced with actual slide data
 
 Return ONLY the <div>. Nothing else.`;
 }
