@@ -3339,9 +3339,25 @@ export default function AgentCatalogPage() {
         return;
       }
 
-      // Deduplicate against everything the user has already seen
-      const seenSet   = new Set(seenTopics);
-      const newUnique = fresh.filter((t) => !seenSet.has(t.topic));
+      // Fuzzy dedup — catches rephrased versions of the same topic
+      function sigWords(s: string): string[] {
+        return s.toLowerCase().replace(/[^a-z0-9\s]/g, "").split(/\s+/).filter((w) => w.length > 3);
+      }
+      function topicIsDupe(candidate: string): boolean {
+        const cw = new Set(sigWords(candidate));
+        return seenTopics.some((seen) => {
+          if (seen === candidate) return true;
+          return sigWords(seen).filter((w) => cw.has(w)).length >= 3;
+        });
+      }
+      const seenHandleSet = new Set(
+        messages.flatMap((m) => (m.trendList ?? []).map((t) => (t.handle ?? "").toLowerCase())).filter(Boolean)
+      );
+      const newUnique = fresh.filter((t) => {
+        if (topicIsDupe(t.topic)) return false;
+        if (t.handle && seenHandleSet.has(t.handle.toLowerCase())) return false;
+        return true;
+      });
       const shown     = newUnique.slice(0, count);
 
       if (shown.length === 0) {
