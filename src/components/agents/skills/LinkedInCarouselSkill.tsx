@@ -34,16 +34,16 @@ type CarouselOutput = {
   visualizationIdeas: VisualizationIdea[];
 };
 
-/* ── Slide position config ──────────────────────────────────────────────────── */
-const SLIDE_CONFIG: Record<number, { label: string; color: string; bg: string; border: string; badge: string; accent: string }> = {
-  1: { label: "Hook",         color: "text-blue-700 dark:text-blue-300",    bg: "bg-blue-50 dark:bg-blue-950/30",     border: "border-blue-300 dark:border-blue-700",   badge: "bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300",   accent: "bg-blue-600" },
-  2: { label: "Mental Model", color: "text-violet-700 dark:text-violet-300", bg: "bg-violet-50 dark:bg-violet-950/30", border: "border-violet-300 dark:border-violet-700", badge: "bg-violet-100 dark:bg-violet-900/50 text-violet-700 dark:text-violet-300", accent: "bg-violet-600" },
-  3: { label: "Core Shift",   color: "text-orange-700 dark:text-orange-300", bg: "bg-orange-50 dark:bg-orange-950/30", border: "border-orange-300 dark:border-orange-700", badge: "bg-orange-100 dark:bg-orange-900/50 text-orange-700 dark:text-orange-300", accent: "bg-orange-500" },
-  4: { label: "Save Anchor",  color: "text-emerald-700 dark:text-emerald-300",bg: "bg-emerald-50 dark:bg-emerald-950/30",border: "border-emerald-300 dark:border-emerald-700",badge: "bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300",accent: "bg-emerald-600" },
-  5: { label: "Depth / Proof",color: "text-indigo-700 dark:text-indigo-300", bg: "bg-indigo-50 dark:bg-indigo-950/30", border: "border-indigo-300 dark:border-indigo-700", badge: "bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300", accent: "bg-indigo-600" },
-  6: { label: "The Contrast", color: "text-rose-700 dark:text-rose-300",     bg: "bg-rose-50 dark:bg-rose-950/30",     border: "border-rose-300 dark:border-rose-700",   badge: "bg-rose-100 dark:bg-rose-900/50 text-rose-700 dark:text-rose-300",   accent: "bg-rose-500" },
-  7: { label: "The Principle",color: "text-amber-700 dark:text-amber-300",   bg: "bg-amber-50 dark:bg-amber-950/30",   border: "border-amber-300 dark:border-amber-700", badge: "bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300", accent: "bg-amber-500" },
-  8: { label: "CTA",          color: "text-slate-600 dark:text-slate-300",   bg: "bg-slate-50 dark:bg-slate-900/40",   border: "border-slate-300 dark:border-slate-600", badge: "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300",   accent: "bg-slate-500" },
+/* ── Slide position config — POZ Design System v0.6.4 variants ─────────────── */
+const SLIDE_CONFIG: Record<number, { label: string; description: string }> = {
+  1: { label: "Cover",      description: "Title + hook statement + swipe cue"  },
+  2: { label: "Chapter",    description: "Scene transition / context-setting"   },
+  3: { label: "Definition", description: "Term defined with precision"          },
+  4: { label: "Stat",       description: "Featured statistic with context"      },
+  5: { label: "Quote",      description: "Pull-quote or authority insight"      },
+  6: { label: "Editorial",  description: "Opinion / editorial stance"           },
+  7: { label: "Two-Col",    description: "Side-by-side comparison"              },
+  8: { label: "CTA",        description: "Call-to-action + brand close"         },
 };
 
 const ANGLES = [
@@ -102,59 +102,84 @@ function ScoreRing({ score }: { score: number }) {
   );
 }
 
-/* ── Slide card ─────────────────────────────────────────────────────────────── */
+/* ── Slide card — POZ warm paper canvas preview ─────────────────────────────── */
 function SlideCard({ slide, showViz, viz }: { slide: Slide; showViz: boolean; viz?: VisualizationIdea }) {
   const cfg = SLIDE_CONFIG[slide.position] ?? SLIDE_CONFIG[1];
   const overLimit = slide.wordCount > 25;
   return (
-    <div className={cn("rounded-xl border-2 p-4 space-y-3 transition-all", cfg.border, cfg.bg)}>
-      {/* Header row */}
-      <div className="flex items-center justify-between gap-2 flex-wrap">
-        <div className="flex items-center gap-2">
-          <span className={cn("text-[10px] font-black tracking-widest uppercase", cfg.color)}>
-            {String(slide.position).padStart(2, "0")}
+    <div className="rounded-xl border border-border overflow-hidden">
+      {/* Mini carousel slide preview — POZ warm paper canvas */}
+      <div
+        className="relative px-4 pt-4 pb-5"
+        style={{
+          background: "linear-gradient(180deg, #fdfcfa 0%, #fcfbf8 55%, #faf9f5 100%)",
+          minHeight: "160px",
+        }}
+      >
+        {/* Eyebrow: slide number + variant */}
+        <div className="flex items-center justify-between mb-3">
+          <span
+            className="text-[10px] font-black tracking-[0.18em] uppercase"
+            style={{ color: "rgba(26,26,26,0.38)", letterSpacing: "0.18em" }}
+          >
+            {String(slide.position).padStart(2, "0")} / {cfg.label.toUpperCase()}
           </span>
-          <span className={cn("text-[10px] font-bold px-2 py-0.5 rounded-full", cfg.badge)}>
-            {cfg.label}
+          {slide.position < 8 && (
+            <span className="text-[9px] font-medium" style={{ color: "rgba(26,26,26,0.22)" }}>
+              swipe →
+            </span>
+          )}
+        </div>
+
+        {/* Slide title */}
+        <p className="text-sm font-black leading-snug mb-2" style={{ color: "#1a1a1a" }}>
+          {slide.title}
+        </p>
+
+        {/* Slide body */}
+        <p className="text-xs leading-relaxed" style={{ color: "#4a4a4a" }}>
+          {slide.body}
+        </p>
+
+        {/* Word count pill */}
+        <div className="absolute bottom-2 right-3">
+          <span
+            className={cn(
+              "text-[9px] font-semibold px-1.5 py-0.5 rounded",
+              overLimit
+                ? "bg-red-100 text-red-600"
+                : "text-foreground/35"
+            )}
+            style={!overLimit ? { background: "rgba(26,26,26,0.06)" } : undefined}
+          >
+            {slide.wordCount}w{overLimit ? " ⚠" : ""}
           </span>
         </div>
-        <span className={cn("text-[10px] font-semibold px-1.5 py-0.5 rounded",
-          overLimit ? "bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400"
-                    : "bg-muted text-muted-foreground"
-        )}>
-          {slide.wordCount}w {overLimit ? "⚠ over 25" : ""}
-        </span>
       </div>
 
-      {/* Title */}
-      <p className={cn("text-base font-black leading-tight", cfg.color)}>{slide.title}</p>
-
-      {/* Body */}
-      <p className="text-sm text-foreground/80 leading-relaxed">{slide.body}</p>
-
-      {/* Quality note */}
-      {slide.qualityNote && (
-        <p className="text-[11px] text-muted-foreground italic border-t border-border/40 pt-2">{slide.qualityNote}</p>
-      )}
-
-      {/* Hat scores */}
-      <div className="flex flex-wrap gap-1 pt-1">
-        <ScoreBadge score={slide.hatScores.cSuite}    label="C-Suite" />
-        <ScoreBadge score={slide.hatScores.algorithm} label="Algo" />
-        <ScoreBadge score={slide.hatScores.specialist} label="Specialist" />
-      </div>
-
-      {/* Visualization idea */}
-      {showViz && viz && (
-        <div className="mt-2 pt-2 border-t border-border/40 space-y-1">
-          <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Design Direction</p>
-          <p className="text-[11px] text-muted-foreground"><span className="font-semibold text-foreground/70">BG:</span> {viz.background}</p>
-          <p className="text-[11px] text-muted-foreground"><span className="font-semibold text-foreground/70">Type:</span> {viz.typography}</p>
-          <p className="text-[11px] text-muted-foreground"><span className="font-semibold text-foreground/70">Layout:</span> {viz.layout}</p>
-          <p className="text-[11px] text-muted-foreground"><span className="font-semibold text-foreground/70">Colour:</span> {viz.colorScheme}</p>
-          <p className="text-[11px] text-foreground/70 font-medium italic">{viz.designNote}</p>
+      {/* Scoring section */}
+      <div className="px-4 py-3 space-y-2 bg-card border-t border-border/60">
+        {slide.qualityNote && (
+          <p className="text-[11px] text-muted-foreground italic">{slide.qualityNote}</p>
+        )}
+        <div className="flex flex-wrap gap-1">
+          <ScoreBadge score={slide.hatScores.cSuite}     label="C-Suite" />
+          <ScoreBadge score={slide.hatScores.algorithm}  label="Algo" />
+          <ScoreBadge score={slide.hatScores.specialist} label="Specialist" />
         </div>
-      )}
+
+        {/* Visualization idea */}
+        {showViz && viz && (
+          <div className="pt-2 border-t border-border/40 space-y-1">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Design Direction</p>
+            <p className="text-[11px] text-muted-foreground"><span className="font-semibold text-foreground/70">BG:</span> {viz.background}</p>
+            <p className="text-[11px] text-muted-foreground"><span className="font-semibold text-foreground/70">Type:</span> {viz.typography}</p>
+            <p className="text-[11px] text-muted-foreground"><span className="font-semibold text-foreground/70">Layout:</span> {viz.layout}</p>
+            <p className="text-[11px] text-muted-foreground"><span className="font-semibold text-foreground/70">Colour:</span> {viz.colorScheme}</p>
+            <p className="text-[11px] text-foreground/70 font-medium italic">{viz.designNote}</p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -273,7 +298,7 @@ export default function LinkedInCarouselSkill() {
 
       {/* ── Header badge ───────────────────────────────────────── */}
       <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl bg-linear-to-br from-blue-500 to-violet-600 flex items-center justify-center shrink-0">
+        <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center shrink-0">
           <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/>
             <rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/>
@@ -354,7 +379,7 @@ export default function LinkedInCarouselSkill() {
           className={cn(
             "w-full py-2.5 rounded-xl text-sm font-semibold transition-all",
             generating ? "bg-muted text-muted-foreground cursor-not-allowed"
-                       : "bg-linear-to-r from-blue-600 to-violet-600 text-white hover:opacity-90"
+                       : "bg-primary text-primary-foreground hover:opacity-90 active:scale-[0.99]"
           )}
         >
           {generating ? (
@@ -405,9 +430,9 @@ export default function LinkedInCarouselSkill() {
                 disabled={submitting || submitted}
                 className={cn(
                   "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all",
-                  submitted ? "bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800"
+                  submitted ? "bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800"
                             : submitting ? "bg-muted text-muted-foreground border-border cursor-not-allowed"
-                            : "bg-blue-600 text-white border-blue-600 hover:bg-blue-700"
+                            : "bg-primary text-primary-foreground border-primary hover:opacity-90"
                 )}
               >
                 {submitted ? (
@@ -458,7 +483,7 @@ export default function LinkedInCarouselSkill() {
             {output.hashtags?.length > 0 && (
               <div className="flex flex-wrap gap-1.5 pt-2 border-t border-border/50">
                 {output.hashtags.map((h) => (
-                  <span key={h} className="text-xs px-2.5 py-1 rounded-md border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 font-mono bg-blue-50 dark:bg-blue-950/30">
+                  <span key={h} className="text-xs px-2.5 py-1 rounded-md border border-border text-muted-foreground font-mono bg-muted">
                     {h.startsWith("#") ? h : `#${h}`}
                   </span>
                 ))}
