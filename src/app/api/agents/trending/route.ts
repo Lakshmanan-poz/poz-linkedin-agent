@@ -56,9 +56,18 @@ export async function GET(request: NextRequest) {
 
   const since = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
   const today = new Date().toISOString().split("T")[0];
-  const cacheKey = `${day.day}-${today}`;
 
-  // Return cached result if fresh (avoids re-running 13-23s x.ai call every request)
+  // "more" requests pass already-seen topic titles so x.ai finds different ones
+  const excludeParam = url.searchParams.get("exclude") ?? "";
+  const excludeTopics = excludeParam
+    ? excludeParam.split("|||").map((t) => t.trim()).filter(Boolean)
+    : [];
+
+  // Separate cache key for "more" batches so they don't collide with batch 1
+  const batchKey = excludeTopics.length > 0 ? `-more${excludeTopics.length}` : "";
+  const cacheKey = `${day.day}-${today}${batchKey}`;
+
+  // Return cached result if fresh (avoids re-running 24s x.ai call every request)
   const cached = cache.get(cacheKey);
   if (cached && Date.now() - cached.fetchedAt < CACHE_TTL_MS) {
     return NextResponse.json({
@@ -71,6 +80,10 @@ export async function GET(request: NextRequest) {
 
   const count = 3;
 
+  const excludeLine = excludeTopics.length > 0
+    ? `- Do NOT return topics similar to these already shown: ${excludeTopics.map((t) => `"${t}"`).join(", ")}\n`
+    : "";
+
   const prompt = `Search X/Twitter for the ${count} most liked and most replied posts from the last 2 days (${since} to ${today}) about: ${day.hint}
 
 Rules:
@@ -78,7 +91,7 @@ Rules:
 - Highest likes + replies first
 - Real accounts: founders, executives, researchers, investors
 - Must include direct post URL with status ID
-
+${excludeLine}
 Return ONLY JSON, no markdown:
 {
   "trends": [

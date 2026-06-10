@@ -3316,7 +3316,10 @@ export default function AgentCatalogPage() {
       // the route always responds in ≤23s, well under this limit.
       const ctrl = new AbortController();
       const tid  = setTimeout(() => ctrl.abort(), 26_000);
-      const res  = await fetch(`/api/agents/trending?day=${today}`, { signal: ctrl.signal });
+      const excludeParam = seenTopics.length > 0
+        ? `&exclude=${encodeURIComponent(seenTopics.join("|||"))}`
+        : "";
+      const res  = await fetch(`/api/agents/trending?day=${today}${excludeParam}`, { signal: ctrl.signal });
       clearTimeout(tid);
 
       // If API Gateway killed the Lambda (504), res.json() throws — fall to catch.
