@@ -57,9 +57,9 @@ const FONT_LINK = `<link href="https://rsms.me/inter/inter.css" rel="stylesheet"
 const LOGO = `<div style="width:65px;height:65px;flex-shrink:0;"><svg viewBox="0 0 110 110" fill="none" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%;display:block;"><path fill="#0a0a0a" fill-rule="evenodd" d="M15,28 H67 Q82,28 82,43 V95 Q82,110 67,110 H15 Q0,110 0,95 V43 Q0,28 15,28 Z M43,0 H95 Q110,0 110,15 V67 Q110,82 95,82 H43 Q28,82 28,67 V15 Q28,0 43,0 Z"/></svg></div>`;
 const FOOT_RULE = `<div style="height:1px;background:linear-gradient(90deg,transparent,rgba(0,0,0,0.16) 12%,rgba(0,0,0,0.16) 88%,transparent);flex-shrink:0;"></div>`;
 const WORDMARK  = `<span style="font-family:Inter,sans-serif;font-size:32px;font-weight:510;color:#0a0a0a;letter-spacing:-0.4px;">point one zero</span>`;
-const SWIPE     = `<span style="font-family:Inter,sans-serif;font-size:32px;font-weight:700;color:#0a0a0a;line-height:1;">›</span>`;
-const FOOTER_STD = `<div style="padding:0 96px;flex-shrink:0;">${FOOT_RULE}<div style="display:flex;justify-content:space-between;align-items:center;padding:20px 0 24px;">${WORDMARK}${SWIPE}</div></div>`;
-const FOOTER_CTA = `<div style="padding:0 96px;flex-shrink:0;">${FOOT_RULE}<div style="padding:20px 0 24px;">${WORDMARK}</div></div>`;
+const SWIPE     = `<img src="/assets/Swipe.png" alt="" style="width:36px;height:36px;display:block;flex-shrink:0;object-fit:contain;">`;
+const FOOTER_STD = `<div style="padding:0 96px;flex-shrink:0;margin-top:auto;">${FOOT_RULE}<div style="display:flex;justify-content:space-between;align-items:center;padding:20px 0 24px;">${WORDMARK}${SWIPE}</div></div>`;
+const FOOTER_CTA = `<div style="padding:0 96px;flex-shrink:0;margin-top:auto;">${FOOT_RULE}<div style="padding:20px 0 24px;">${WORDMARK}</div></div>`;
 
 /* ─── Eight reference slide blocks ───────────────────────────────────────────── */
 
@@ -78,7 +78,6 @@ const REF_COVER = `<!-- COVER: 1080x1350, warm paper + veil, ALL text CENTER ali
     <div style="height:44px;"></div>
     <p style="font-family:Inter,sans-serif;font-size:44px;font-weight:400;color:#3f3f46;line-height:1.45;letter-spacing:-0.4px;margin:0;">Not the models. Not the engineering. Nobody designed how people actually use it.</p>
   </div>
-  <div style="flex:1;max-height:180px;min-height:40px;"></div>
   ${FOOTER_STD}
 </div>`;
 
@@ -137,7 +136,6 @@ const REF_DEFINITION = `<!-- DEFINITION: WORD font sized by length (≤4=220 5-6
     <div style="height:20px;"></div>
     <p style="font-family:Inter,sans-serif;font-size:40px;font-weight:400;color:#3f3f46;line-height:1.45;letter-spacing:-0.3px;margin:0;">You cannot design every conversation. You design the building blocks and the rules — the AI fills in the rest.</p>
   </div>
-  <div style="flex:1;max-height:180px;min-height:40px;"></div>
   ${FOOTER_STD}
 </div>`;
 
@@ -158,7 +156,6 @@ const REF_STAT = `<!-- STAT: featured 440px brand number + 96px suffix centered 
     <div style="height:24px;"></div>
     <p style="font-family:Inter,sans-serif;font-size:40px;font-weight:400;color:#3f3f46;line-height:1.45;letter-spacing:-0.3px;margin:0;">The AI provides intelligence. Engineering provides infrastructure. Design provides the reason anyone uses it.</p>
   </div>
-  <div style="flex:1;max-height:180px;min-height:40px;"></div>
   ${FOOTER_STD}
 </div>`;
 
@@ -196,7 +193,6 @@ const REF_EDITORIAL = `<!-- EDITORIAL: 240px INK drop-cap (NEVER brand), 64px bo
     <div style="height:28px;"></div>
     <p style="font-family:Inter,sans-serif;font-size:40px;font-weight:400;color:#3f3f46;line-height:1.45;letter-spacing:-0.3px;margin:0;text-align:center;">The difference between adoption and abandonment is almost never the intelligence of the model. It is whether people could use it on the first day without a training session.</p>
   </div>
-  <div style="flex:1;max-height:180px;min-height:40px;"></div>
   ${FOOTER_STD}
 </div>`;
 
@@ -243,7 +239,6 @@ const REF_CTA = `<!-- CTA: 1080x1350, warm paper + veil, 88px headline CENTER al
     <div style="height:36px;"></div>
     <div style="font-family:'Courier New',monospace;font-size:32px;color:#767d87;letter-spacing:0.02em;">pointonezero.com</div>
   </div>
-  <div style="flex:1;max-height:180px;min-height:40px;"></div>
   ${FOOTER_CTA}
 </div>`;
 
@@ -340,17 +335,21 @@ LOGO (65×65px — ALL slides, top-right)
 ══════════════════════════════════════════════════
 FOOTER (all slides) — COPY EXACTLY
 ══════════════════════════════════════════════════
-Non-last slides (has › swipe arrow on right):
-<div style="padding:0 96px;flex-shrink:0;"><div style="height:1px;background:linear-gradient(90deg,transparent,rgba(0,0,0,0.16) 12%,rgba(0,0,0,0.16) 88%,transparent);"></div><div style="display:flex;justify-content:space-between;align-items:center;padding:20px 0 24px;"><span style="font-family:Inter,sans-serif;font-size:32px;font-weight:510;color:#0a0a0a;letter-spacing:-0.4px;">point one zero</span><span style="font-family:Inter,sans-serif;font-size:32px;font-weight:700;color:#0a0a0a;line-height:1;">›</span></div></div>
+CRITICAL: The footer div MUST have margin-top:auto so it is always pinned to the very bottom of the 1350px slide.
+Do NOT use a spacer div before the footer. Use margin-top:auto on the footer itself.
 
-Last slide / CTA (NO swipe — wordmark only):
-<div style="padding:0 96px;flex-shrink:0;"><div style="height:1px;background:linear-gradient(90deg,transparent,rgba(0,0,0,0.16) 12%,rgba(0,0,0,0.16) 88%,transparent);"></div><div style="padding:20px 0 24px;"><span style="font-family:Inter,sans-serif;font-size:32px;font-weight:510;color:#0a0a0a;letter-spacing:-0.4px;">point one zero</span></div></div>
+Non-last slides (has arrow image on right):
+<div style="padding:0 96px;flex-shrink:0;margin-top:auto;"><div style="height:1px;background:linear-gradient(90deg,transparent,rgba(0,0,0,0.16) 12%,rgba(0,0,0,0.16) 88%,transparent);"></div><div style="display:flex;justify-content:space-between;align-items:center;padding:20px 0 24px;"><span style="font-family:Inter,sans-serif;font-size:32px;font-weight:510;color:#0a0a0a;letter-spacing:-0.4px;">point one zero</span><img src="/assets/Swipe.png" alt="" style="width:36px;height:36px;display:block;flex-shrink:0;object-fit:contain;"></div></div>
+
+Last slide / CTA (NO arrow — wordmark only):
+<div style="padding:0 96px;flex-shrink:0;margin-top:auto;"><div style="height:1px;background:linear-gradient(90deg,transparent,rgba(0,0,0,0.16) 12%,rgba(0,0,0,0.16) 88%,transparent);"></div><div style="padding:20px 0 24px;"><span style="font-family:Inter,sans-serif;font-size:32px;font-weight:510;color:#0a0a0a;letter-spacing:-0.4px;">point one zero</span></div></div>
 
 FOOTER RULES:
+- margin-top:auto on the footer div — ALWAYS, NO exceptions — this pins footer to bottom
 - "point one zero" ALWAYS on the LEFT (32px wt:510 #0a0a0a)
-- "›" ALWAYS on the RIGHT (32px wt:700 #0a0a0a) — on every slide EXCEPT the last
+- Arrow image <img src="/assets/Swipe.png"> on RIGHT — on every slide EXCEPT the last
 - Horizontal fading line ALWAYS above the footer row
-- NEVER center the footer text — it must be left/right split
+- NEVER center the footer — it must be left/right split
 
 ══════════════════════════════════════════════════
 EIGHT REFERENCE SLIDES — MATCH EXACTLY
@@ -508,7 +507,7 @@ CHECKLIST before output:
 ✓ 65px INK logo top-right
 ✓ Header padding-top:80px, margin-top:24px before content
 ✓ Brand #009FEF on ONE element only
-✓ Footer: "point one zero" 32px wt:510 left${isLast ? ", NO swipe (last slide)" : ", › 32px wt:700 right"}
+✓ Footer: margin-top:auto, "point one zero" 32px wt:510 left${isLast ? ", NO arrow (last slide)" : ", <img src='/assets/Swipe.png' width=36 height=36> right"}
 ✓ All content replaced with actual slide data
 
 Return ONLY the <div>. Nothing else.`;
