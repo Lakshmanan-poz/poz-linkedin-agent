@@ -413,15 +413,25 @@ If real-time X/Twitter trend context is provided, extract 1–2 specific data po
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 8-SLIDE STRUCTURE — always in this order
+Each slide position maps to one of the eight POZ design variants.
+Set the "type" field in your JSON to the variant name shown below.
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-01 Hook           — [Current broken state]. [That just changed.] — creates immediate knowledge gap
-02 What It Is     — "Not X. It is Y." — gives the reader a complete mental model in one slide
-03 Core Shift     — the implication; reader feels this changes their reality, not just the market
-04 Why It Matters — competitive consequence; the most save-worthy slide; a CIO screenshots this
-05 Depth / Proof  — specific mechanism, named data point, or real-world signal (from X trends if available)
-06 The Contrast   — "Not X — Y." sharpens the idea; before/after or old world/new world
-07 The Principle  — one universal rule that generalises the insight; reads like a law
-08 CTA            — one direct question about their current reality; ends with "Drop it below." or equivalent
+01 Hook           — type: "Cover"      — [Current broken state]. [That just changed.] — creates immediate knowledge gap
+                    Hero headline (<=12 words) + one lead sentence (<=25 words). Brand-dot in eyebrow. ONE brand-word.
+02 What It Is     — type: "Chapter"    — "Not X. It is Y." — complete mental model in one slide
+                    Chapter title (<=6 words) + intro sentence. Mono brand chapter number. Centered layout.
+03 Core Shift     — type: "Definition" — define precisely WHAT changed; the mechanism behind the shift
+                    One KEY WORD (single UPPERCASE noun) + brand accent rule + definition (<=16 words) + body (<=2 sentences).
+04 Why It Matters — type: "Stat"       — lead with a specific number, figure, or measurable consequence
+                    Featured statistic: value + suffix + label (<=14 words) + body (<=30 words). This is the save-worthy slide.
+05 Depth / Proof  — type: "Quote"      — one sharp authority sentence; real-world signal or client insight
+                    Pull-quote (<=30 words) + attribution. Use real-time X trend data here if available.
+06 The Contrast   — type: "Editorial"  — 4–6 sentence editorial stance; old world vs new world
+                    Drop-cap paragraph. Body expands: "Not X. Y." structure. The contrast must be precise.
+07 The Principle  — type: "TwoCol"     — side-by-side: old model (left) vs new model (right)
+                    Left column: what teams still doing it wrong look like. Right column: what winning looks like.
+08 CTA            — type: "CTA"        — one direct question about their current reality; ends with "Drop it below."
+                    Mirrors Cover layout. Headline <=8 words (declarative, NOT a question). Question goes in body only.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 SLIDE FORMULA (NON-NEGOTIABLE)
@@ -487,7 +497,7 @@ Respond ONLY with valid JSON:
   "slides": [
     {
       "position": number,
-      "type": string,
+      "type": "Cover"|"Chapter"|"Definition"|"Stat"|"Quote"|"Editorial"|"TwoCol"|"CTA",
       "title": string,
       "body": string,
       "wordCount": number,
@@ -496,7 +506,17 @@ Respond ONLY with valid JSON:
     }
   ],
   "caption": string,
-  "hashtags": string[]
+  "hashtags": string[],
+  "visualizationIdeas": [
+    {
+      "position": number,
+      "background": "linear-gradient(180deg, #fdfcfa 0%, #fcfbf8 55%, #faf9f5 100%)",
+      "typography": string (e.g. "Cover: 120px display-lg font-weight-600, 40px lead. Chapter: 96px display-md centered. Definition: 220px uppercase keyword + 44px definition. Stat: 440px featured value + 64px label. Quote: 72px pull-quote weight-510. Editorial: 40px body drop-cap. TwoCol: 48px heading each column + 40px body. CTA: mirrors Cover layout."),
+      "layout": string (one sentence describing the specific layout for this slide's variant),
+      "colorScheme": "Canvas #fcfbf8 warm paper · Foreground #0f0f0f near-black · Brand #009FEF on named surfaces only",
+      "designNote": string (one specific design instruction for this slide: what brand element, layout rule, or copy constraint applies)
+    }
+  ]
 }`,
     buildUserPrompt: (inputs) =>
       `Generate an 8-slide LinkedIn carousel in the exact POZ content style.
@@ -508,20 +528,40 @@ Industry: ${inputs.industry || "B2B Technology / AI Consulting"}
 Target Audience: ${inputs.audience || "CIOs, CTOs, CEOs, CPOs"}
 Brand Voice: ${inputs.brandVoice || "Senior strategist — confident, calm, direct"}
 ${inputs.referenceContent ? `\nAdditional reference / context:\n${inputs.referenceContent}` : ""}
-${(inputs.trendingContext as string | undefined) ? `\nReal-time X/Twitter trends (last 7 days) — use 1–2 specific data points in slide 05 ONLY, do not fabricate:\n${inputs.trendingContext}` : ""}
+${(inputs.trendingContext as string | undefined) ? `\nReal-time X/Twitter trends (last 7 days) — use 1–2 specific data points in slide 05 (type: Quote) ONLY, do not fabricate:\n${inputs.trendingContext}` : ""}
+
+SLIDE TYPE RULES — set each slide's "type" field exactly as shown:
+  Position 01 → type "Cover"      — hero headline + lead sentence + brand-dot in eyebrow
+  Position 02 → type "Chapter"    — chapter title + intro + mono brand number centered
+  Position 03 → type "Definition" — single UPPERCASE keyword + accent rule + definition + body
+  Position 04 → type "Stat"       — featured number + suffix + label (is-featured = brand colour) + body
+  Position 05 → type "Quote"      — pull-quote (<=30 words) + attribution + source
+  Position 06 → type "Editorial"  — drop-cap paragraph, 4–6 sentences, editorial stance
+  Position 07 → type "TwoCol"     — left: old model / right: new model — side-by-side contrast
+  Position 08 → type "CTA"        — mirrors Cover; headline is declarative (NOT a question); question in body
+
+COPY CONSTRAINTS per type:
+  Cover:      headline <=12 words, lead <=25 words
+  Chapter:    title <=6 words
+  Definition: word = 1 UPPERCASE noun; definition <=16 words; body <=2 sentences
+  Stat:       label <=14 words; body <=30 words
+  Quote:      quote <=30 words
+  Editorial:  4–6 sentences, <=120 words total
+  TwoCol:     each column heading <=6 words; each column body <=20 words
+  CTA:        headline <=8 words (declarative); body = the open question (10–15 words)
 
 SELF-VALIDATION REQUIRED BEFORE RETURNING JSON:
 Before finalising each slide, score it mentally under all three hats:
   Hat 1 (C-Suite): Does the title stand alone? Is the body specific, not generic? Would a CXO save this slide?
   Hat 2 (Algorithm): Does the slide earn 4–6 seconds of dwell? Is slide 04 screenshot-worthy?
-  Hat 3 (Specialist): Is the title 4–6 words exactly? Is the body 10–15 words exactly? Is the total under 25 words?
+  Hat 3 (Specialist): Is the title 4–6 words exactly (except CTA <=8)? Is the body 10–15 words? Total under 25 words?
 
 REWRITE ANY SLIDE that scores below 8 under any hat before returning.
 Title word count violations are hard failures — rewrite immediately.
 Body word count violations are hard failures — rewrite immediately.
 Generic body claims ("better", "faster", "smarter") are hard failures — add the specific mechanism.
 
-Apply ALL 7 POZ content DNA rules. Generate all 8 slides with three-hat scores, full LinkedIn caption, hashtags (5–10), and visualization ideas.`,
+Apply ALL 7 POZ content DNA rules. Return all 8 slides with correct POZ type, three-hat scores, full LinkedIn caption, hashtags (8–10 starting with PointOneZero), and visualizationIdeas for all 8 positions.`,
   },
 
   "daily-post": {

@@ -105,6 +105,7 @@ function ScoreRing({ score }: { score: number }) {
 /* ── Slide card — POZ warm paper canvas preview ─────────────────────────────── */
 function SlideCard({ slide, showViz, viz }: { slide: Slide; showViz: boolean; viz?: VisualizationIdea }) {
   const cfg = SLIDE_CONFIG[slide.position] ?? SLIDE_CONFIG[1];
+  const variantLabel = slide.type || cfg.label;
   const overLimit = slide.wordCount > 25;
   return (
     <div className="rounded-xl border border-border overflow-hidden">
@@ -122,7 +123,7 @@ function SlideCard({ slide, showViz, viz }: { slide: Slide; showViz: boolean; vi
             className="text-[10px] font-black tracking-[0.18em] uppercase"
             style={{ color: "rgba(26,26,26,0.38)", letterSpacing: "0.18em" }}
           >
-            {String(slide.position).padStart(2, "0")} / {cfg.label.toUpperCase()}
+            {String(slide.position).padStart(2, "0")} / {variantLabel.toUpperCase()}
           </span>
           {slide.position < 8 && (
             <span className="text-[9px] font-medium" style={{ color: "rgba(26,26,26,0.22)" }}>
