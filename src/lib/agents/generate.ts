@@ -418,8 +418,8 @@ Set the "type" field in your JSON to the variant name shown below.
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 01 Hook           — type: "Cover"      — [Current broken state]. [That just changed.] — creates immediate knowledge gap
                     Hero headline (<=12 words) + one lead sentence (<=25 words). Brand-dot in eyebrow. ONE brand-word.
-02 What It Is     — type: "Chapter"    — "Not X. It is Y." — complete mental model in one slide
-                    Chapter title (<=6 words) + intro sentence. Mono brand chapter number. Centered layout.
+02 What It Is     — type: "Chapter"    — enumerate the key problems/principles/elements of this topic
+                    Headline (<=8 words): "N [things] that [verb]". Body: list of 3–4 items, each as "Name: short description" on its own line.
 03 Core Shift     — type: "Definition" — define precisely WHAT changed; the mechanism behind the shift
                     One KEY WORD (single UPPERCASE noun) + brand accent rule + definition (<=16 words) + body (<=2 sentences).
 04 Why It Matters — type: "Stat"       — lead with a specific number, figure, or measurable consequence
@@ -532,7 +532,7 @@ ${(inputs.trendingContext as string | undefined) ? `\nReal-time X/Twitter trends
 
 SLIDE TYPE RULES — set each slide's "type" field exactly as shown:
   Position 01 → type "Cover"      — hero headline + lead sentence + brand-dot in eyebrow
-  Position 02 → type "Chapter"    — chapter title + intro + mono brand number centered
+  Position 02 → type "Chapter"    — numbered list: headline + body as 3-4 "Name: description" items on separate lines
   Position 03 → type "Definition" — single UPPERCASE keyword + accent rule + definition + body
   Position 04 → type "Stat"       — featured number + suffix + label (is-featured = brand colour) + body
   Position 05 → type "Quote"      — pull-quote (<=30 words) + attribution + source
@@ -542,7 +542,7 @@ SLIDE TYPE RULES — set each slide's "type" field exactly as shown:
 
 COPY CONSTRAINTS per type:
   Cover:      headline <=12 words, lead <=25 words
-  Chapter:    title <=6 words
+  Chapter:    title <=8 words (pattern: "N [things] that [verb]"); body = 3–4 items each as "Name: short description" on its own line (name <=3 words, description <=10 words)
   Definition: word = 1 UPPERCASE noun; definition <=16 words; body <=2 sentences
   Stat:       label <=14 words; body <=30 words
   Quote:      quote <=30 words
