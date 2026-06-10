@@ -1,0 +1,91 @@
+name: Deploy to AWS Lambda
+
+# Auto-deploys the backend to AWS Lambda on every push to main (by anyone),
+# plus a manual "Run workflow" button. Authenticates to AWS via GitHub OIDC
+# (no long-lived AWS keys stored in the repo) and only updates the Lambda's
+# container image — existing environment variables / config are left untouched.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Prevent overlapping deploys from racing on the same Lambda.
+concurrency:
+  group: deploy-lambda-main
+  cancel-in-progress: false
+
+permissions:
+  id-token: write   # required to request the OIDC token
+  contents: read
+
+env:
+  AWS_REGION: us-east-1
+  ECR_REPO: poz-social-agent
+  LAMBDA_FN: poz-social-api
+
+jobs:
+  deploy:
+    name: Build image & update Lambda
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::321213587646:role/poz-social-gha-deploy
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Log in to Amazon ECR
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push image
+        env:
+          ECR_REGISTRY: ${{ steps.ecr.outputs.registry }}
+        run: |
+          set -euo pipefail
+          IMAGE="${ECR_REGISTRY}/${ECR_REPO}"
+          docker build --platform linux/amd64 -f Dockerfile.lambda \
+            -t "${IMAGE}:latest" -t "${IMAGE}:${GITHUB_SHA}" .
+          docker push "${IMAGE}:latest"
+          docker push "${IMAGE}:${GITHUB_SHA}"
+
+      - name: Resolve image digest
+        id: digest
+        env:
+          ECR_REGISTRY: ${{ steps.ecr.outputs.registry }}
+        run: |
+          set -euo pipefail
+          DIGEST=$(aws ecr describe-images \
+            --repository-name "${ECR_REPO}" \
+            --region "${AWS_REGION}" \
+            --image-ids imageTag="${GITHUB_SHA}" \
+            --query 'imageDetails[0].imageDigest' --output text)
+          echo "image=${ECR_REGISTRY}/${ECR_REPO}@${DIGEST}" >> "${GITHUB_OUTPUT}"
+          echo "Resolved digest: ${DIGEST}"
+
+      - name: Update Lambda function code
+        run: |
+          set -euo pipefail
+          aws lambda update-function-code \
+            --function-name "${LAMBDA_FN}" \
+            --image-uri "${{ steps.digest.outputs.image }}" \
+            --region "${AWS_REGION}" >/dev/null
+          aws lambda wait function-updated \
+            --function-name "${LAMBDA_FN}" \
+            --region "${AWS_REGION}"
+          echo "✅ Deployed ${{ steps.digest.outputs.image }}"
+
+      - name: Summary
+        run: |
+          {
+            echo "### ✅ Lambda deploy complete"
+            echo ""
+            echo "- **Function:** \`${LAMBDA_FN}\`"
+            echo "- **Commit:** \`${GITHUB_SHA}\`"
+            echo "- **Image:** \`${{ steps.digest.outputs.image }}\`"
+            echo "- **URL:** https://ypg368g0ai.execute-api.us-east-1.amazonaws.com"
+          } >> "${GITHUB_STEP_SUMMARY}"
