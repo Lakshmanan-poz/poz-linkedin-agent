@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyToken, COOKIE_NAME } from "@/lib/auth";
+import { saveTrendingBatch, getFallbackTrends } from "@/lib/db/trending-cache";
 
-const DAY_TYPES = [
+export const DAY_TYPES = [
   { day: "Monday",    type: "Thought Leadership", hint: "AI trends, business outcomes, leadership decisions, executive mindset" },
   { day: "Tuesday",   type: "Engagement Post",    hint: "industry challenges, provocative questions, hot debates, controversial takes" },
   { day: "Wednesday", type: "Tool Spotlight",     hint: "new AI tools, software releases, product launches, tech comparisons" },
@@ -21,7 +22,7 @@ export type TrendItem = {
   posted_at?: string;
 };
 
-function getDayConfig(dayParam?: string | null) {
+export function getDayConfig(dayParam?: string | null) {
   if (dayParam) {
     const found = DAY_TYPES.find((d) => d.day.toLowerCase() === dayParam.toLowerCase());
     if (found) return found;
@@ -39,7 +40,7 @@ const CACHE_TTL_MS = 20 * 60 * 1000;
 // Cache pre-warm on mount means user clicks almost always hit cache (0ms).
 export const maxDuration = 30;
 
-async function fetchOnce(
+export async function fetchOnce(
   prompt: string,
   since: string,
   today: string,
@@ -157,63 +158,59 @@ ${excludeLine}Return ONLY valid JSON, no markdown:
   ]
 }`;
 
-  // Single attempt with 25s timeout (Lambda hard limit is 29s).
-  // Cache is pre-warmed on page mount so this cold path is rare.
-  let text = "";
+  // Try live grok API. Any failure (timeout, network, parse error) falls
+  // through to Supabase DB fallback so the user always sees topics.
+  let liveTrends: TrendItem[] | null = null;
   try {
-    text = await fetchOnce(prompt, since, today, xaiKey, 27_000);
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    return NextResponse.json({ error: `Unable to fetch trending data. Please try again. (${msg})`, trends: [] });
-  }
-
-  if (!text) {
-    return NextResponse.json({ error: "No data returned. Please try again.", trends: [] });
-  }
-
-  // Extract citation URLs from the full response text as fallback for post_url
-  const urlMatches = text.match(/https?:\/\/x\.com\/\w+\/status\/\d+/g) ?? [];
-
-  // Collect annotation citations from raw output
-  const postCitations: string[] = [...urlMatches];
-
-  const jsonMatch = text.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) {
-    return NextResponse.json({ error: "No trending data returned. Try again.", trends: [] });
-  }
-
-  let parsed: { trends: { handle?: string; authority?: string; whatTheySaid?: string; topic: string; post_url?: string; posted_at?: string }[] };
-  try {
-    parsed = JSON.parse(jsonMatch[0]);
-  } catch {
-    return NextResponse.json({ error: "Malformed response from API. Try again.", trends: [] });
-  }
-
-  const items = parsed.trends?.filter((t) => t.topic) ?? [];
-  if (items.length === 0) {
-    return NextResponse.json({ error: "No trending topics found. Try again in a moment.", trends: [] });
-  }
-
-  const trends: TrendItem[] = items.slice(0, count).map((t, i) => {
-    const handle = (t.handle ?? "").replace("@", "").toLowerCase();
-    let post_url = t.post_url ?? "";
-    if (!/x\.com\/\w+\/status\/\d+/.test(post_url)) {
-      const matched = postCitations.find((u) => u.toLowerCase().includes(`/${handle}/status/`));
-      post_url = matched ?? postCitations[i] ?? (handle ? `https://x.com/${handle}` : "");
+    const text = await fetchOnce(prompt, since, today, xaiKey, 27_000);
+    if (text) {
+      const urlMatches = text.match(/https?:\/\/x\.com\/\w+\/status\/\d+/g) ?? [];
+      const postCitations: string[] = [...urlMatches];
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        let parsed: { trends: { handle?: string; authority?: string; whatTheySaid?: string; topic: string; post_url?: string; posted_at?: string }[] } | null = null;
+        try { parsed = JSON.parse(jsonMatch[0]); } catch { /* bad JSON — fall through */ }
+        if (parsed) {
+          const items = parsed.trends?.filter((t) => t.topic) ?? [];
+          if (items.length > 0) {
+            liveTrends = items.slice(0, count).map((t, i) => {
+              const handle = (t.handle ?? "").replace("@", "").toLowerCase();
+              let post_url = t.post_url ?? "";
+              if (!/x\.com\/\w+\/status\/\d+/.test(post_url)) {
+                const matched = postCitations.find((u) => u.toLowerCase().includes(`/${handle}/status/`));
+                post_url = matched ?? postCitations[i] ?? (handle ? `https://x.com/${handle}` : "");
+              }
+              return {
+                day:          day.day as TrendItem["day"],
+                type:         day.type,
+                topic:        t.topic,
+                summary:      "",
+                handle:       t.handle,
+                authority:    t.authority,
+                whatTheySaid: t.whatTheySaid,
+                post_url:     post_url || undefined,
+                posted_at:    t.posted_at,
+              };
+            });
+          }
+        }
+      }
     }
-    return {
-      day:          day.day as TrendItem["day"],
-      type:         day.type,
-      topic:        t.topic,
-      summary:      "",
-      handle:       t.handle,
-      authority:    t.authority,
-      whatTheySaid: t.whatTheySaid,
-      post_url:     post_url || undefined,
-      posted_at:    t.posted_at,
-    };
-  });
+  } catch { /* timeout or network error — fall through to DB fallback */ }
 
-  cache.set(cacheKey, { trends, day: day.day, contentType: day.type, fetchedAt: Date.now() });
-  return NextResponse.json({ trends, day: day.day, contentType: day.type, source: "live" });
+  if (liveTrends && liveTrends.length > 0) {
+    // Cache in memory + save to DB so future failures can show these topics
+    cache.set(cacheKey, { trends: liveTrends, day: day.day, contentType: day.type, fetchedAt: Date.now() });
+    saveTrendingBatch(liveTrends, day.day, day.type).catch(() => {});
+    return NextResponse.json({ trends: liveTrends, day: day.day, contentType: day.type, source: "live" });
+  }
+
+  // Live API failed — serve from Supabase DB (built up by previous successful live fetches
+  // and the /api/agents/trending/refresh cron job). Excludes already-shown topics for variety.
+  const fallbackTrends = await getFallbackTrends(day.day, excludeTopics, count);
+  if (fallbackTrends.length > 0) {
+    return NextResponse.json({ trends: fallbackTrends, day: day.day, contentType: day.type, source: "fallback_db" });
+  }
+
+  return NextResponse.json({ error: "X trends are currently unavailable. Please try again in a moment.", trends: [] });
 }

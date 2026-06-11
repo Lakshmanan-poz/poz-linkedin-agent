@@ -296,3 +296,34 @@ CREATE INDEX IF NOT EXISTS idx_agent_catalog_chat_messages_user
 
 -- Show posts with new statuses
 -- SELECT id, title, status FROM posts ORDER BY created_at DESC LIMIT 20;
+-- =====================================================
+-- TRENDING TOPIC CACHE (added 2026-06-11)
+-- Stores topics from successful grok fetches so the
+-- trending feature always has fallback data.
+-- =====================================================
+
+CREATE TABLE IF NOT EXISTS trending_cache (
+  id            BIGSERIAL    PRIMARY KEY,
+  day           TEXT         NOT NULL,          -- Monday–Friday
+  content_type  TEXT         NOT NULL,          -- Thought Leadership, etc.
+  topic         TEXT         NOT NULL,          -- LinkedIn headline (10-12 words)
+  handle        TEXT,                           -- @username on X
+  authority     TEXT,                           -- Role at Company
+  what_they_said TEXT,                          -- Exact post text
+  post_url      TEXT,                           -- https://x.com/u/status/ID
+  posted_at     TEXT,                           -- ISO timestamp of original post
+  batch_id      TEXT         NOT NULL,          -- day-YYYY-MM-DDTHH group
+  stored_at     TIMESTAMPTZ  DEFAULT NOW() NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_trending_cache_day_stored
+  ON trending_cache(day, stored_at DESC);
+
+-- RLS: admin client bypasses entirely; allow anon read for fallback queries
+ALTER TABLE trending_cache ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY IF NOT EXISTS "trending_cache_select_all"
+  ON trending_cache FOR SELECT USING (true);
+
+CREATE POLICY IF NOT EXISTS "trending_cache_service_all"
+  ON trending_cache FOR ALL TO service_role USING (true) WITH CHECK (true);
