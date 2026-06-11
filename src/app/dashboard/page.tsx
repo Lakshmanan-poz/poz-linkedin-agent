@@ -843,8 +843,6 @@ function EmployeeDashboard() {
     return acc;
   }, {});
 
-  const unread = notifications.filter((n) => !n.is_read);
-
   const empKpis = [
     { label: "Total Posts", value: posts.length,                                                                                                                                           dot: "bg-primary",      num: "text-primary" },
     { label: "Draft",       value: statusCounts["draft"] || 0,                                                                                                                             dot: "bg-zinc-400",     num: "text-zinc-600 dark:text-zinc-400" },
@@ -959,89 +957,40 @@ function EmployeeDashboard() {
         </div>
       )}
 
-      {/* Posts + notifications */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* My Posts */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-base font-semibold">My Posts</CardTitle>
-            <Link href="/posts">
-              <Button variant="outline" size="sm">View All</Button>
-            </Link>
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              <div className="space-y-2">
-                {[1, 2, 3].map((i) => <div key={i} className="h-10 animate-pulse bg-muted rounded-lg" />)}
-              </div>
-            ) : posts.length === 0 ? (
-              <div className="text-center py-10">
-                <p className="text-sm text-muted-foreground mb-3">No posts yet.</p>
-                <Link href="/posts/new"><Button size="sm">Create Your First Post</Button></Link>
-              </div>
-            ) : (
-              <div className="divide-y divide-border -mx-1">
-                {posts.slice(0, 6).map((post) => (
-                  <Link
-                    key={post.id}
-                    href={`/posts/${post.id}`}
-                    className="flex items-center justify-between px-1 py-2.5 rounded-lg hover:bg-muted/40 transition-colors"
-                  >
-                    <span className="text-sm font-medium truncate flex-1 mr-3">{post.title}</span>
-                    <PostStatusBadge status={post.status as PostStatus} />
-                  </Link>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Notifications */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <div className="flex items-center gap-2">
-              <CardTitle className="text-base font-semibold">Notifications</CardTitle>
-              {unread.length > 0 && (
-                <span className="text-xs font-bold bg-primary text-primary-foreground px-2 py-0.5 rounded-full">
-                  {unread.length}
-                </span>
-              )}
+      {/* My Posts */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between pb-2">
+          <CardTitle className="text-base font-semibold">My Posts</CardTitle>
+          <Link href="/posts">
+            <Button variant="outline" size="sm">View All</Button>
+          </Link>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <div className="space-y-2">
+              {[1, 2, 3].map((i) => <div key={i} className="h-10 animate-pulse bg-muted rounded-lg" />)}
             </div>
-          </CardHeader>
-          <CardContent>
-            {notifications.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-6 text-center">No notifications yet.</p>
-            ) : (
-              <div className="space-y-2">
-                {notifications.slice(0, 6).map((n) => (
-                  <div
-                    key={n.id}
-                    className={`flex items-start gap-3 px-3 py-2.5 rounded-lg border ${
-                      n.is_read
-                        ? "border-transparent bg-muted/30"
-                        : "border-primary/20 bg-primary/5"
-                    }`}
-                  >
-                    <div className={`w-1.5 h-1.5 rounded-full mt-1.5 shrink-0 ${n.is_read ? "bg-muted-foreground/40" : "bg-primary"}`} />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm leading-snug">{n.message}</p>
-                      <p className="text-xs text-muted-foreground mt-0.5">{new Date(n.created_at).toLocaleString()}</p>
-                    </div>
-                    {n.post_id && (
-                      <Link href={`/posts/${n.post_id}`} className="text-xs text-primary font-medium shrink-0 hover:underline">
-                        View
-                      </Link>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Agent activity */}
-      <MyAgentActivity />
+          ) : posts.length === 0 ? (
+            <div className="text-center py-10">
+              <p className="text-sm text-muted-foreground mb-3">No posts yet.</p>
+              <Link href="/posts/new"><Button size="sm">Create Your First Post</Button></Link>
+            </div>
+          ) : (
+            <div className="divide-y divide-border -mx-1">
+              {posts.slice(0, 6).map((post) => (
+                <Link
+                  key={post.id}
+                  href={`/posts/${post.id}`}
+                  className="flex items-center justify-between px-1 py-2.5 rounded-lg hover:bg-muted/40 transition-colors"
+                >
+                  <span className="text-sm font-medium truncate flex-1 mr-3">{post.title}</span>
+                  <PostStatusBadge status={post.status as PostStatus} />
+                </Link>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
     </div>
   );
