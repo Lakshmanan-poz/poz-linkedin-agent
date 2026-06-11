@@ -849,7 +849,7 @@ function EmployeeDashboard() {
     { label: "Total Posts", value: posts.length,                                                                                                                                           dot: "bg-primary",      num: "text-primary" },
     { label: "Draft",       value: statusCounts["draft"] || 0,                                                                                                                             dot: "bg-zinc-400",     num: "text-zinc-600 dark:text-zinc-400" },
     { label: "In Review",   value: (statusCounts["submitted"] || 0) + (statusCounts["under_review"] || 0) + (statusCounts["changes_requested"] || 0),                                    dot: "bg-amber-500",    num: "text-amber-600 dark:text-amber-400" },
-    { label: "Publishing",  value: (statusCounts["ready_to_publish"] || 0) + (statusCounts["published"] || 0),                                                                            dot: "bg-emerald-500",  num: "text-emerald-600 dark:text-emerald-400" },
+    { label: "Published",   value: (statusCounts["ready_to_publish"] || 0) + (statusCounts["published"] || 0),                                                                            dot: "bg-emerald-500",  num: "text-emerald-600 dark:text-emerald-400" },
   ];
 
   return (

@@ -38,7 +38,7 @@ export default function ContentStatusPage() {
       statuses: ["approved_for_design", "design_in_progress"] as PostStatus[],
     },
     {
-      label: "Publishing",
+      label: "Published",
       color: "bg-green-50 dark:bg-green-900/20",
       textColor: "text-green-700 dark:text-green-400",
       statuses: ["ready_to_publish", "published"] as PostStatus[],

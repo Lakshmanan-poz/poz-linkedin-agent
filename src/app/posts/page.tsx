@@ -47,13 +47,10 @@ function Avatar({ name, size = 28 }: { name?: string; size?: number }) {
 
 /* ─── Type config ────────────────────────────────────────────────────────────── */
 const TYPE_GRADIENT: Record<string, string> = {
-  problem_solution: "linear-gradient(135deg,#f97316,#ef4444)",
-  educational:      "linear-gradient(135deg,#3b82f6,#06b6d4)",
-  execution:        "linear-gradient(135deg,#8b5cf6,#6d28d9)",
-  carousel:         "linear-gradient(135deg,#ec4899,#f43f5e)",
-};
-const TYPE_ICON: Record<string, string> = {
-  problem_solution: "💡", educational: "📚", execution: "⚙️", carousel: "🎠",
+  problem_solution: "linear-gradient(135deg,#009FF0,#0070c8)",
+  educational:      "linear-gradient(135deg,#00b4ff,#009FF0)",
+  execution:        "linear-gradient(135deg,#0070c8,#004fa0)",
+  carousel:         "linear-gradient(135deg,#009FF0,#00c4f4)",
 };
 
 /* ─── Kanban columns ─────────────────────────────────────────────────────────── */
@@ -61,7 +58,7 @@ const KANBAN_COLS = [
   { id:"draft",   label:"Draft",       color:"#6b7280", statuses:["draft"] as PostStatus[] },
   { id:"review",  label:"In Review",   color:"#f59e0b", statuses:["submitted","under_review","changes_requested"] as PostStatus[] },
   { id:"design",  label:"In Design",   color:"#3b82f6", statuses:["approved_for_design","design_in_progress"] as PostStatus[] },
-  { id:"publish", label:"Publishing",  color:"#10b981", statuses:["ready_to_publish","published"] as PostStatus[] },
+  { id:"publish", label:"Published",  color:"#10b981", statuses:["ready_to_publish","published"] as PostStatus[] },
 ];
 
 /* ─── Skeleton card ──────────────────────────────────────────────────────────── */
@@ -83,14 +80,12 @@ function SkeletonCard() {
 
 /* ─── Post card ──────────────────────────────────────────────────────────────── */
 function PostCard({ post }: { post: Post }) {
-  const gradient = TYPE_GRADIENT[post.post_type] ?? "linear-gradient(135deg,#6b7280,#374151)";
-  const icon     = TYPE_ICON[post.post_type] ?? "📄";
+  const gradient = TYPE_GRADIENT[post.post_type] ?? "linear-gradient(135deg,#009FF0,#0070c8)";
   return (
     <Link href={`/posts/${post.id}`} className="block group">
       <div className="rounded-xl border border-border overflow-hidden bg-card hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 h-full">
         {/* Gradient header */}
-        <div className="h-[72px] relative flex items-end px-4 pb-3" style={{ background: gradient }}>
-          <span className="text-2xl drop-shadow">{icon}</span>
+        <div className="h-[72px] relative" style={{ background: gradient }}>
           <div className="absolute top-2.5 right-2.5">
             <PostStatusBadge status={post.status as PostStatus} />
           </div>

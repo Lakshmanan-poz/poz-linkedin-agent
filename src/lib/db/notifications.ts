@@ -54,6 +54,12 @@ export async function markAsRead(id: number): Promise<void> {
   if (error) throw new Error(error.message);
 }
 
+export async function deleteNotification(id: number): Promise<void> {
+  const db = getAdminDb() ?? getDb();
+  const { error } = await db.from("notifications").delete().eq("id", id);
+  if (error) throw new Error(error.message);
+}
+
 export async function markAllAsRead(userId: number): Promise<void> {
   const db = getAdminDb() ?? getDb();
   const { error } = await db
