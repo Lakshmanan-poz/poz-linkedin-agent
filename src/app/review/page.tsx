@@ -41,24 +41,56 @@ function parseHashtags(raw: string | null): string[] {
 
 /* ── Section config ──────────────────────────────────────────────────────────── */
 type Section = {
+  key: string;
   label: string;
+  color: string;
+  bg: string;
   statuses: PostStatus[];
   emptyText: string;
+  icon: React.ReactNode;
 };
 
 const SECTIONS: Section[] = [
-  { label: "Pending Reviews",    statuses: ["submitted", "under_review"], emptyText: "No posts awaiting review." },
-  { label: "Ready to Publish",   statuses: ["ready_to_publish"],          emptyText: "No posts ready to publish." },
-  { label: "Changes Requested",  statuses: ["changes_requested"],         emptyText: "No posts awaiting changes." },
+  {
+    key: "pending",
+    label: "Pending Reviews",
+    color: "#f59e0b",
+    bg: "#f59e0b10",
+    statuses: ["submitted", "under_review"],
+    emptyText: "No posts awaiting review.",
+    icon: <><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></>,
+  },
+  {
+    key: "changes",
+    label: "Changes Requested",
+    color: "#ef4444",
+    bg: "#ef444410",
+    statuses: ["changes_requested"],
+    emptyText: "No posts awaiting changes.",
+    icon: <><circle cx="12" cy="12" r="10"/><line x1="15" x2="9" y1="9" y2="15"/><line x1="9" x2="15" y1="9" y2="15"/></>,
+  },
+  {
+    key: "ready",
+    label: "Ready to Publish",
+    color: "#10b981",
+    bg: "#10b98110",
+    statuses: ["ready_to_publish"],
+    emptyText: "No posts ready to publish.",
+    icon: <><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></>,
+  },
 ];
 
 export default function ReviewPage() {
   const { authRole, currentUser, loading } = useUser();
   const router = useRouter();
-  const [posts,        setPosts]        = useState<Post[]>([]);
-  const [fetching,     setFetching]     = useState(true);
-  const [transitioning,setTransitioning]= useState<number | null>(null);
-  const [expandedId,   setExpandedId]   = useState<number | null>(null);
+  const [posts,         setPosts]         = useState<Post[]>([]);
+  const [fetching,      setFetching]      = useState(true);
+  const [transitioning, setTransitioning] = useState<number | null>(null);
+  const [expandedId,    setExpandedId]    = useState<number | null>(null);
+  const [openSection,   setOpenSection]   = useState<string | null>(null);
+
+  const toggleSection = (key: string) =>
+    setOpenSection(prev => prev === key ? null : key);
 
   useEffect(() => {
     if (!loading && authRole !== "admin" && authRole !== "superadmin") {
@@ -167,21 +199,36 @@ export default function ReviewPage() {
 
       {SECTIONS.map((section) => {
         const sectionPosts = getPostsByStatuses(section.statuses);
+        const isSecOpen = openSection === section.key;
         return (
-          <Card key={section.label}>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                {section.label}
-                {sectionPosts.length > 0 && (
-                  <span className="text-sm font-normal bg-primary/10 text-primary px-2 py-0.5 rounded-full">
-                    {sectionPosts.length}
-                  </span>
-                )}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
+          <div key={section.key} className="border rounded-xl overflow-hidden shadow-sm">
+            {/* Accordion header */}
+            <button
+              onClick={() => toggleSection(section.key)}
+              className="w-full flex items-center justify-between px-4 py-3.5 hover:brightness-95 transition-all"
+              style={{ background: section.bg }}
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ background: section.color + "25" }}>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={section.color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">{section.icon}</svg>
+                </div>
+                <span className="text-sm font-semibold" style={{ color: section.color }}>{section.label}</span>
+                <span className="text-xs font-bold px-2 py-0.5 rounded-full text-white" style={{ background: section.color }}>
+                  {sectionPosts.length}
+                </span>
+              </div>
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                stroke={section.color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+                style={{ transition: "transform 200ms", transform: isSecOpen ? "rotate(180deg)" : "rotate(0deg)", flexShrink: 0 }}>
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
+            </button>
+
+            {/* Collapsible content */}
+            {isSecOpen && (
+              <div className="p-4 space-y-3 bg-card">
               {sectionPosts.length === 0 ? (
-                <p className="text-sm text-muted-foreground">{section.emptyText}</p>
+                <p className="text-sm text-muted-foreground py-2">{section.emptyText}</p>
               ) : (
                 <div className="space-y-3">
                   {sectionPosts.map((post) => {
@@ -323,8 +370,9 @@ export default function ReviewPage() {
                   })}
                 </div>
               )}
-            </CardContent>
-          </Card>
+              </div>
+            )}
+          </div>
         );
       })}
     </div>

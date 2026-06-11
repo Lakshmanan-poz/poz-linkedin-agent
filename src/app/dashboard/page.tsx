@@ -546,10 +546,8 @@ function AdminReviewQueue() {
 
 // ─── Admin / Super-admin Dashboard ───────────────────────────────────────────
 function AdminDashboard() {
-  const [stats, setStats]             = useState<DashboardStats | null>(null);
-  const [posts, setPosts]             = useState<Post[]>([]);
-  const [openSection, setOpenSection] = useState<string | null>(null);
-  const [calMonth, setCalMonth]       = useState<Date>(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1));
+  const [stats, setStats]           = useState<DashboardStats | null>(null);
+  const [calMonth, setCalMonth]     = useState<Date>(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1));
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
 
   useEffect(() => {
@@ -560,12 +558,8 @@ function AdminDashboard() {
         .catch(() => {});
     load();
     const t = setInterval(load, 30_000);
-    fetch("/api/posts").then(r => r.json()).then(d => setPosts(Array.isArray(d) ? d : [])).catch(() => {});
     return () => clearInterval(t);
   }, []);
-
-  const toggleSection = (key: string) =>
-    setOpenSection(prev => prev === key ? null : key);
 
   const pbs = (stats?.postsByStatus ?? {}) as Record<string, number>;
   const acceptedCount = (pbs.approved_for_design || 0) + (pbs.design_in_progress || 0) + (pbs.ready_to_publish || 0) + (pbs.published || 0);
@@ -798,100 +792,6 @@ function AdminDashboard() {
         </CardContent>
       </Card>
 
-      {/* Accordion sections — Pending Reviews / Changes Requested / Ready to Publish */}
-      {([
-        {
-          key: "pending",
-          label: "Pending Reviews",
-          color: "#f59e0b",
-          bg: "#f59e0b10",
-          statuses: ["submitted", "under_review"],
-          icon: <><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></>,
-        },
-        {
-          key: "changes",
-          label: "Changes Requested",
-          color: "#ef4444",
-          bg: "#ef444410",
-          statuses: ["changes_requested"],
-          icon: <><circle cx="12" cy="12" r="10"/><line x1="15" x2="9" y1="9" y2="15"/><line x1="9" x2="15" y1="9" y2="15"/></>,
-        },
-        {
-          key: "ready",
-          label: "Ready to Publish",
-          color: "#10b981",
-          bg: "#10b98110",
-          statuses: ["ready_to_publish"],
-          icon: <><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></>,
-        },
-      ] as { key: string; label: string; color: string; bg: string; statuses: string[]; icon: React.ReactNode }[]).map((section) => {
-        const sectionPosts = posts.filter(p => section.statuses.includes(p.status));
-        const isOpen = openSection === section.key;
-        return (
-          <div key={section.key} className="border rounded-xl overflow-hidden shadow-sm">
-            <button
-              onClick={() => toggleSection(section.key)}
-              className="w-full flex items-center justify-between px-4 py-3 hover:bg-muted/30 transition-colors"
-              style={{ background: section.bg }}
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ background: section.color + "22" }}>
-                  <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={section.color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">{section.icon}</svg>
-                </div>
-                <span className="text-sm font-semibold" style={{ color: section.color }}>{section.label}</span>
-                <span className="text-xs font-bold px-2 py-0.5 rounded-full text-white" style={{ background: section.color }}>
-                  {sectionPosts.length}
-                </span>
-              </div>
-              <svg
-                xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
-                stroke={section.color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
-                style={{ transition: "transform 200ms", transform: isOpen ? "rotate(180deg)" : "rotate(0deg)", flexShrink: 0 }}
-              >
-                <polyline points="6 9 12 15 18 9" />
-              </svg>
-            </button>
-
-            {isOpen && (
-              sectionPosts.length === 0 ? (
-                <p className="px-4 py-3 text-sm text-muted-foreground">No posts in this category.</p>
-              ) : (
-                <div className="divide-y divide-border/60">
-                  {sectionPosts.map((post) => (
-                    <div key={post.id} className="flex items-center justify-between px-4 py-3 hover:bg-muted/30 transition-colors">
-                      <div className="min-w-0 flex-1">
-                        <Link href={`/posts/${post.id}`} className="text-sm font-medium hover:underline truncate block">
-                          {post.title}
-                        </Link>
-                        <div className="flex items-center gap-2 mt-0.5">
-                          <span className="text-xs text-muted-foreground">{post.author_name}</span>
-                          <span className="text-muted-foreground/40">·</span>
-                          <span className="text-xs text-muted-foreground">
-                            {POST_TYPE_LABELS[post.post_type as PostType] ?? post.post_type}
-                          </span>
-                          <span className="text-muted-foreground/40">·</span>
-                          <span className="text-xs text-muted-foreground">
-                            {new Date(post.created_at).toLocaleDateString()}
-                          </span>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-3 ml-4 shrink-0">
-                        <PostStatusBadge status={post.status as PostStatus} />
-                        <Link
-                          href={`/posts/${post.id}`}
-                          className="text-xs font-medium px-2 py-1 rounded-lg border border-border hover:bg-accent transition-colors"
-                        >
-                          View
-                        </Link>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )
-            )}
-          </div>
-        );
-      })}
 
     </div>
   );
