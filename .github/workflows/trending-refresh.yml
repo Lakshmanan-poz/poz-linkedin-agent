@@ -1,0 +1,30 @@
+name: Refresh trending topics cache
+
+# Runs every 20 minutes to keep the Supabase trending_cache stocked
+# with fresh topics. The app uses this as fallback when the live
+# grok API times out — ensures users always see topics, never errors.
+
+on:
+  schedule:
+    - cron: '0,20,40 * * * *'   # every 20 minutes
+  workflow_dispatch:              # allow manual trigger from GitHub UI
+
+jobs:
+  refresh:
+    name: Fetch and save today's trending topics
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Run refresh script
+        env:
+          XAI_API_KEY:              ${{ secrets.XAI_API_KEY }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SECRET_KEY:      ${{ secrets.SUPABASE_SECRET_KEY }}
+        run: node scripts/refresh-trends.mjs
