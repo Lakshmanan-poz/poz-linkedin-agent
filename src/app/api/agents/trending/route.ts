@@ -35,8 +35,8 @@ const cache = new Map<string, CacheEntry>();
 const CACHE_TTL_MS = 20 * 60 * 1000;
 
 // Lambda + API Gateway hard limit is 29s. x_search takes 13-23s.
-// We use grok-3 (no reasoning step = faster) and a 26s abort so the route
-// always returns a JSON response before API Gateway kills the connection.
+// Uses grok-4-fast-reasoning + x_search. Server abort at 25s, client waits 28s.
+// Cache pre-warm on mount means user clicks almost always hit cache (0ms).
 export const maxDuration = 30;
 
 async function fetchOnce(
@@ -154,26 +154,18 @@ ${excludeLine}Return ONLY valid JSON, no markdown:
   ]
 }`;
 
-  // Try up to 2 times. x_search typically takes 13-23s; grok-3 (no reasoning)
-  // shaves off the reasoning overhead. First attempt timeout: 25s. If it aborts,
-  // the second attempt (Lambda has already warmed) usually finishes in 13-17s.
-  // Total worst-case: 25s + 17s = 42s theoretical — but the outer Lambda hard
-  // limit at 29s means only one full attempt runs per Lambda invocation.
-  // In practice, one attempt is enough; the retry is a safety net for edge cases.
+  // Single attempt with 25s timeout (Lambda hard limit is 29s).
+  // Cache is pre-warmed on page mount so this cold path is rare.
   let text = "";
-  let lastErr = "";
-
-  for (let attempt = 1; attempt <= 2; attempt++) {
-    try {
-      text = await fetchOnce(prompt, since, today, xaiKey, 25_000);
-      if (text) break;
-    } catch (err) {
-      lastErr = err instanceof Error ? err.message : String(err);
-    }
+  try {
+    text = await fetchOnce(prompt, since, today, xaiKey, 25_000);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return NextResponse.json({ error: `Unable to fetch trending data. Please try again. (${msg})`, trends: [] });
   }
 
   if (!text) {
-    return NextResponse.json({ error: `Unable to fetch trending data. Please try again.`, trends: [] });
+    return NextResponse.json({ error: "No data returned. Please try again.", trends: [] });
   }
 
   // Extract citation URLs from the full response text as fallback for post_url

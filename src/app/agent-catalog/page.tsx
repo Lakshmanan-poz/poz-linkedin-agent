@@ -3316,10 +3316,11 @@ export default function AgentCatalogPage() {
     ]);
 
     try {
-      // 15s client timeout — chat/completions + search_parameters returns in 3-8s.
-      // 15s gives ample headroom even on cold Lambda starts.
+      // 28s client timeout — server uses x_search (13-23s) with a 25s abort.
+      // Cache pre-warm means this fires only on the very first cold load; all
+      // subsequent calls return instantly from cache.
       const ctrl = new AbortController();
-      const tid  = setTimeout(() => ctrl.abort(), 15_000);
+      const tid  = setTimeout(() => ctrl.abort(), 28_000);
       // Only send the last batch (3) as exclude — sending all seen topics confuses
       // x.ai and breaks the loop. Client-side fuzzy dedup handles all historical repeats.
       const lastBatch = seenTopics.slice(-3);
