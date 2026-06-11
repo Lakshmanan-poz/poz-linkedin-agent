@@ -55,7 +55,7 @@ async function fetchOnce(
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${xaiKey}` },
       body: JSON.stringify({
-        model: "grok-3",            // grok-3: no reasoning step → faster than grok-4-fast-reasoning
+        model: process.env.XAI_MODEL ?? "grok-4-fast-reasoning",
         input: [{ role: "user", content: prompt }],
         tools: [{ type: "x_search", from_date: since, to_date: today }],
         text: { format: { type: "json_object" } },

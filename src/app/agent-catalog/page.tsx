@@ -2196,6 +2196,17 @@ export default function AgentCatalogPage() {
       .finally(() => setLoadingHistory(false));
   }, [currentUser?.id]);
 
+  /* pre-warm trending cache as soon as user is authenticated —
+     x_search takes 13-23s; doing it silently on mount means the
+     user's click returns from cache instantly (0ms).            */
+  useEffect(() => {
+    if (!currentUser?.id) return;
+    const dayNames = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+    const idx = new Date().getDay();
+    const today = dayNames[idx >= 1 && idx <= 5 ? idx : 1];
+    fetch(`/api/agents/trending?day=${today}`).catch(() => {});
+  }, [currentUser?.id]);
+
   /* auto-save session whenever messages settle (debounced 800ms) */
   useEffect(() => {
     if (!currentUser?.id || messages.length === 0) return;
@@ -3296,8 +3307,8 @@ export default function AgentCatalogPage() {
 
     const agentId = uuid();
     const loadingText = seenTopics.length > 0
-      ? `Fetching ${count} more fresh topics from X…`
-      : `Scanning X for today's trending ${today} topics…`;
+      ? `Fetching 3 more fresh topics from X… (usually instant)`
+      : `Scanning X for today's top 3 trending ${today} topics… (15–20s first load, instant after)`;
 
     setMessages((prev) => [
       ...prev,
@@ -3379,6 +3390,9 @@ export default function AgentCatalogPage() {
             : m
         ));
         setPendingQ({ type: "trend-topic-pick", trends: shownFallback, seenTopics: newSeenFallback });
+        // Pre-warm next batch
+        const nxExclude = encodeURIComponent(newSeenFallback.slice(-3).join("|||"));
+        fetch(`/api/agents/trending?day=${today}&exclude=${nxExclude}`).catch(() => {});
         return;
       }
 
@@ -3405,6 +3419,13 @@ export default function AgentCatalogPage() {
           : m
       ));
       setPendingQ({ type: "trend-topic-pick", trends: shown, seenTopics: newSeenTopics });
+
+      // Pre-warm the next "more" batch immediately in the background.
+      // By the time the user clicks "Load 3 more", the server cache is already warm → instant.
+      const nextExclude = newSeenTopics.slice(-3);
+      const nextExcludeParam = encodeURIComponent(nextExclude.join("|||"));
+      fetch(`/api/agents/trending?day=${today}&exclude=${nextExcludeParam}`).catch(() => {});
+
     } catch (err) {
       const isAbort = err instanceof Error && (err.name === "AbortError" || err.message.includes("abort"));
       const msg = isAbort
