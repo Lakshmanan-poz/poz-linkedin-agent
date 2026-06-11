@@ -114,8 +114,9 @@ export async function GET(request: NextRequest) {
     ? excludeParam.split("|||").map((t) => t.trim()).filter(Boolean)
     : [];
 
-  const batchKey = excludeTopics.length > 0 ? `-more${excludeTopics.length}` : "";
-  const cacheKey = `${day.day}-${today}${batchKey}`;
+  const cacheKey = excludeTopics.length > 0
+    ? `${day.day}-${today}-${excludeTopics.map(t => t.toLowerCase()).sort().join("|")}`
+    : `${day.day}-${today}`;
 
   const cached = cache.get(cacheKey);
   if (cached && Date.now() - cached.fetchedAt < CACHE_TTL_MS) {

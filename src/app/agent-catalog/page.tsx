@@ -3437,6 +3437,7 @@ export default function AgentCatalogPage() {
           ? { ...m, generating: false, text: msg }
           : m
       ));
+      setPendingQ(null);
     }
   }
 
