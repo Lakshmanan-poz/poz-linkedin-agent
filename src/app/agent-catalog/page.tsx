@@ -2136,7 +2136,7 @@ const SUGGESTIONS: Array<{ icon: React.ReactNode; label: string; desc: string; t
     icon: <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>,
     label: "What's trending today",
     desc: "Live X/Twitter signals for B2B thought leaders",
-    text: "Show me 3 trending topics from X for LinkedIn content today",
+    text: "Show me trending topics from X for LinkedIn content today",
   },
   {
     icon: <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>,
@@ -2502,9 +2502,7 @@ export default function AgentCatalogPage() {
       const pq = pendingQ;
       setMessages((prev) => [...prev, { id: uuid(), role: "user", text }]);
       setPendingQ(null);
-      const count = extractSlideCount(text) ?? parseInt(text, 10);
-      const n = (!isNaN(count) && count > 0 && count <= 20) ? count : 3;
-      await fetchAndShowTrends(n, pq.seenTopics);
+      await fetchAndShowTrends(3, pq.seenTopics);
       return;
     }
 
@@ -2701,9 +2699,7 @@ export default function AgentCatalogPage() {
     /* ── Trend search trigger ───────────────────────────────────────── */
     if (/trend|trending|today.*topic|topic.*today|what.*trending|show.*trend|latest.*topic|current.*topic|popular.*topic|ai.*update|ai.*news|what.*hot|what.*popular/i.test(text)) {
       setMessages((prev) => [...prev, { id: uuid(), role: "user", text }]);
-      const countMatch = text.match(/\b(\d+)\b/);
-      const n = countMatch ? Math.min(parseInt(countMatch[1], 10), 20) : 3;
-      await fetchAndShowTrends(n, []);
+      await fetchAndShowTrends(3, []);
       return;
     }
 
@@ -2817,7 +2813,7 @@ export default function AgentCatalogPage() {
 
       if (routed.action === "trending") {
         setMessages((prev) => prev.filter((m) => m.id !== agentId));
-        await fetchAndShowTrends(routed.count ?? 3, []);
+        await fetchAndShowTrends(3, []);
         return;
       }
 
@@ -3103,9 +3099,7 @@ export default function AgentCatalogPage() {
     // Trend trigger
     if (/trend|trending|today.*topic|topic.*today|what.*trending|show.*trend|latest.*topic|current.*topic|popular.*topic/i.test(text)) {
       setMessages([...base, { id: uuid(), role: "user", text }]);
-      const countMatch = text.match(/\b(\d+)\b/);
-      const n = countMatch ? Math.min(parseInt(countMatch[1], 10), 20) : 3;
-      await fetchAndShowTrends(n, []);
+      await fetchAndShowTrends(3, []);
       return;
     }
 
