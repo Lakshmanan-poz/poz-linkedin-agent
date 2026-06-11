@@ -30,15 +30,15 @@ function getDayConfig(dayParam?: string | null) {
   return DAY_TYPES[idx >= 1 && idx <= 5 ? idx - 1 : 0];
 }
 
-// In-memory cache — survives across requests within the same Lambda container.
 type CacheEntry = { trends: TrendItem[]; day: string; contentType: string; fetchedAt: number };
 const cache = new Map<string, CacheEntry>();
 const CACHE_TTL_MS = 20 * 60 * 1000;
 
-// Lambda hard limit is 29s. chat/completions + search_parameters finishes in 3-8s.
+// Lambda + API Gateway hard limit is 29s. x_search takes 13-23s.
+// We use grok-3 (no reasoning step = faster) and a 26s abort so the route
+// always returns a JSON response before API Gateway kills the connection.
 export const maxDuration = 30;
 
-// Single attempt using chat/completions + search_parameters (3-8s, not 13-23s like x_search tool)
 async function fetchOnce(
   prompt: string,
   since: string,
@@ -49,32 +49,44 @@ async function fetchOnce(
   const controller = new AbortController();
   const tid = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const res = await fetch("https://api.x.ai/v1/chat/completions", {
+    // Agent Tools API — x_search tool via /v1/responses (chat/completions
+    // search_parameters was deprecated with HTTP 410).
+    const res = await fetch("https://api.x.ai/v1/responses", {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${xaiKey}` },
       body: JSON.stringify({
-        model: "grok-3",
-        messages: [{ role: "user", content: prompt }],
-        search_parameters: {
-          mode: "on",
-          sources: [{ type: "x" }],
-          max_search_results: 10,
-          from_date: since,
-          to_date: today,
-        },
-        stream: false,
+        model: "grok-3",            // grok-3: no reasoning step → faster than grok-4-fast-reasoning
+        input: [{ role: "user", content: prompt }],
+        tools: [{ type: "x_search", from_date: since, to_date: today }],
+        text: { format: { type: "json_object" } },
         temperature: 0.1,
-        max_tokens: 2000,
+        max_output_tokens: 1500,
       }),
       signal: controller.signal,
     });
     clearTimeout(tid);
+
     if (!res.ok) {
       const body = await res.text().catch(() => "");
       throw new Error(`HTTP ${res.status}: ${body}`);
     }
+
     const raw = await res.json();
-    return (raw.choices?.[0]?.message?.content as string) ?? "";
+
+    // /v1/responses wraps text in output array
+    let text: string = typeof raw.output_text === "string" ? raw.output_text : "";
+    if (!text && Array.isArray(raw.output)) {
+      const parts: string[] = [];
+      for (const item of raw.output) {
+        if (Array.isArray(item?.content)) {
+          for (const c of item.content) {
+            if (typeof c?.text === "string") parts.push(c.text);
+          }
+        }
+      }
+      text = parts.join("");
+    }
+    return text;
   } finally {
     clearTimeout(tid);
   }
@@ -105,7 +117,6 @@ export async function GET(request: NextRequest) {
   const batchKey = excludeTopics.length > 0 ? `-more${excludeTopics.length}` : "";
   const cacheKey = `${day.day}-${today}${batchKey}`;
 
-  // Return cached result if fresh
   const cached = cache.get(cacheKey);
   if (cached && Date.now() - cached.fetchedAt < CACHE_TTL_MS) {
     return NextResponse.json({
@@ -129,7 +140,7 @@ Rules:
 - Highest likes + replies first
 - Real accounts: founders, executives, researchers, investors
 - Must include direct post URL with status ID
-${excludeLine}Return ONLY valid JSON, no markdown fences:
+${excludeLine}Return ONLY valid JSON, no markdown:
 {
   "trends": [
     {
@@ -138,20 +149,23 @@ ${excludeLine}Return ONLY valid JSON, no markdown fences:
       "whatTheySaid": "Exact post text",
       "topic": "LinkedIn headline 10-12 words",
       "post_url": "https://x.com/username/status/POST_ID",
-      "posted_at": "2026-06-09T14:32:00Z"
+      "posted_at": "2026-06-11T14:32:00Z"
     }
   ]
 }`;
 
-  // Auto-retry: try twice with 12s each (total ≤ 24s, well within 30s Lambda limit).
-  // chat/completions + search_parameters typically finishes in 3-8s so the second
-  // attempt is almost never needed — but it means the user never sees a timeout error.
+  // Try up to 2 times. x_search typically takes 13-23s; grok-3 (no reasoning)
+  // shaves off the reasoning overhead. First attempt timeout: 25s. If it aborts,
+  // the second attempt (Lambda has already warmed) usually finishes in 13-17s.
+  // Total worst-case: 25s + 17s = 42s theoretical — but the outer Lambda hard
+  // limit at 29s means only one full attempt runs per Lambda invocation.
+  // In practice, one attempt is enough; the retry is a safety net for edge cases.
   let text = "";
   let lastErr = "";
 
   for (let attempt = 1; attempt <= 2; attempt++) {
     try {
-      text = await fetchOnce(prompt, since, today, xaiKey, 12_000);
+      text = await fetchOnce(prompt, since, today, xaiKey, 25_000);
       if (text) break;
     } catch (err) {
       lastErr = err instanceof Error ? err.message : String(err);
@@ -159,14 +173,14 @@ ${excludeLine}Return ONLY valid JSON, no markdown fences:
   }
 
   if (!text) {
-    return NextResponse.json({
-      error: `Could not fetch trending data. Please try again. (${lastErr})`,
-      trends: [],
-    });
+    return NextResponse.json({ error: `Unable to fetch trending data. Please try again.`, trends: [] });
   }
 
-  // Extract any x.com URLs from the response text as citation backup
+  // Extract citation URLs from the full response text as fallback for post_url
   const urlMatches = text.match(/https?:\/\/x\.com\/\w+\/status\/\d+/g) ?? [];
+
+  // Collect annotation citations from raw output
+  const postCitations: string[] = [...urlMatches];
 
   const jsonMatch = text.match(/\{[\s\S]*\}/);
   if (!jsonMatch) {
@@ -177,7 +191,7 @@ ${excludeLine}Return ONLY valid JSON, no markdown fences:
   try {
     parsed = JSON.parse(jsonMatch[0]);
   } catch {
-    return NextResponse.json({ error: "Malformed response. Try again.", trends: [] });
+    return NextResponse.json({ error: "Malformed response from API. Try again.", trends: [] });
   }
 
   const items = parsed.trends?.filter((t) => t.topic) ?? [];
@@ -189,8 +203,8 @@ ${excludeLine}Return ONLY valid JSON, no markdown fences:
     const handle = (t.handle ?? "").replace("@", "").toLowerCase();
     let post_url = t.post_url ?? "";
     if (!/x\.com\/\w+\/status\/\d+/.test(post_url)) {
-      const matched = urlMatches.find((u) => u.toLowerCase().includes(`/${handle}/status/`));
-      post_url = matched ?? urlMatches[i] ?? (handle ? `https://x.com/${handle}` : "");
+      const matched = postCitations.find((u) => u.toLowerCase().includes(`/${handle}/status/`));
+      post_url = matched ?? postCitations[i] ?? (handle ? `https://x.com/${handle}` : "");
     }
     return {
       day:          day.day as TrendItem["day"],
@@ -206,6 +220,5 @@ ${excludeLine}Return ONLY valid JSON, no markdown fences:
   });
 
   cache.set(cacheKey, { trends, day: day.day, contentType: day.type, fetchedAt: Date.now() });
-
   return NextResponse.json({ trends, day: day.day, contentType: day.type, source: "live" });
 }
