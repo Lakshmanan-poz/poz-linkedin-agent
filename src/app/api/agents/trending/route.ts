@@ -64,7 +64,9 @@ async function fetchOnce(
       }),
       signal: controller.signal,
     });
-    clearTimeout(tid);
+    // NOTE: do NOT clearTimeout here — grok reasoning models stream the response body,
+    // so headers arrive in ~1-2s but res.json() can take 20+ more seconds.
+    // The abort timer must keep running to protect the body-read below.
 
     if (!res.ok) {
       const body = await res.text().catch(() => "");
@@ -159,7 +161,7 @@ ${excludeLine}Return ONLY valid JSON, no markdown:
   // Cache is pre-warmed on page mount so this cold path is rare.
   let text = "";
   try {
-    text = await fetchOnce(prompt, since, today, xaiKey, 25_000);
+    text = await fetchOnce(prompt, since, today, xaiKey, 27_000);
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     return NextResponse.json({ error: `Unable to fetch trending data. Please try again. (${msg})`, trends: [] });

@@ -3316,23 +3316,42 @@ export default function AgentCatalogPage() {
     ]);
 
     try {
-      // 28s client timeout — server uses x_search (13-23s) with a 25s abort.
-      // Cache pre-warm means this fires only on the very first cold load; all
-      // subsequent calls return instantly from cache.
-      const ctrl = new AbortController();
-      const tid  = setTimeout(() => ctrl.abort(), 28_000);
       // Only send the last batch (3) as exclude — sending all seen topics confuses
       // x.ai and breaks the loop. Client-side fuzzy dedup handles all historical repeats.
       const lastBatch = seenTopics.slice(-3);
       const excludeParam = lastBatch.length > 0
         ? `&exclude=${encodeURIComponent(lastBatch.join("|||"))}`
         : "";
-      const res  = await fetch(`/api/agents/trending?day=${today}${excludeParam}`, { signal: ctrl.signal });
-      clearTimeout(tid);
+      const trendUrl = `/api/agents/trending?day=${today}${excludeParam}`;
 
-      // If API Gateway killed the Lambda (504), res.json() throws — fall to catch.
-      // If Lambda returned an error JSON, handle it below.
-      const data = await res.json();
+      // 32s client timeout. Auto-retry once on failure — by the time the first
+      // attempt times out, the pre-warm started on mount is usually done, so the
+      // retry hits warm cache instantly. clearTimeout is kept inside try/catch so
+      // the abort timer protects the full body-read (not just the headers).
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let data: any = null;
+      for (let attempt = 0; attempt < 2; attempt++) {
+        if (attempt === 1) {
+          setMessages((prev) => prev.map((m) =>
+            m.id === agentId ? { ...m, text: "Still searching X trends… one moment more." } : m
+          ));
+          await new Promise((r) => setTimeout(r, 2000));
+        }
+        const ctrl = new AbortController();
+        const tid  = setTimeout(() => ctrl.abort(), 32_000);
+        try {
+          const res = await fetch(trendUrl, { signal: ctrl.signal });
+          data = await res.json();
+          clearTimeout(tid);
+        } catch (e) {
+          clearTimeout(tid);
+          if (attempt === 1) throw e; // both attempts failed → outer catch
+          continue;                   // first attempt failed → retry
+        }
+        if (Array.isArray(data?.trends) && data.trends.length > 0) break; // success
+        if (attempt === 0 && data?.error) continue;                        // server error → retry
+      }
+      if (!data) throw new Error("no response");
       const fresh: TrendItem[]  = Array.isArray(data.trends) ? data.trends : [];
       const contentType: string = data.contentType ?? fresh[0]?.type ?? "content";
 
