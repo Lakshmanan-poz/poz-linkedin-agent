@@ -170,7 +170,7 @@ export default function PostsPage() {
   const [posts,   setPosts]   = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [search,  setSearch]  = useState("");
-  const [view,    setView]    = useState<"table"|"cards"|"kanban">("cards");
+  const [view,    setView]    = useState<"table"|"cards"|"kanban">("table");
 
   useEffect(() => {
     const p = new URLSearchParams();

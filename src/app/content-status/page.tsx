@@ -7,9 +7,36 @@ import { PostTypeBadge } from "@/components/posts/post-type-badge";
 import { ALL_STATUSES, POST_STATUS_LABELS, POST_STATUS_COLORS } from "@/lib/constants";
 import { Post, PostStatus } from "@/lib/types";
 
+function ChevronIcon({ open }: { open: boolean }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      style={{ transition: "transform 200ms", transform: open ? "rotate(180deg)" : "rotate(0deg)" }}
+    >
+      <polyline points="6 9 12 15 18 9" />
+    </svg>
+  );
+}
+
 export default function ContentStatusPage() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
+  const [openStages, setOpenStages] = useState<Set<string>>(new Set());
+
+  const toggleStage = (label: string) =>
+    setOpenStages((prev) => {
+      const next = new Set(prev);
+      next.has(label) ? next.delete(label) : next.add(label);
+      return next;
+    });
 
   useEffect(() => {
     fetch("/api/posts")
@@ -67,47 +94,62 @@ export default function ContentStatusPage() {
         })}
       </div>
 
-      {/* Pipeline columns */}
+      {/* Pipeline accordion */}
       {loading ? (
         <div className="text-center py-12 text-muted-foreground">Loading posts…</div>
       ) : (
-        <div className="grid grid-cols-1 gap-4">
+        <div className="flex flex-col gap-3">
           {STAGES.map((stage) => {
             const stagePosts = posts.filter((p) => (stage.statuses as string[]).includes(p.status));
+            const isOpen = openStages.has(stage.label);
             return (
               <div key={stage.label} className="border rounded-lg overflow-hidden">
-                <div className={`px-4 py-2 flex items-center justify-between ${stage.color}`}>
-                  <span className={`font-semibold text-sm ${stage.textColor}`}>{stage.label}</span>
-                  <span className={`text-sm font-bold ${stage.textColor}`}>{stagePosts.length}</span>
-                </div>
+                {/* Clickable header */}
+                <button
+                  onClick={() => toggleStage(stage.label)}
+                  className={`w-full px-4 py-3 flex items-center justify-between ${stage.color} cursor-pointer select-none`}
+                >
+                  <div className="flex items-center gap-2">
+                    <span className={`font-semibold text-sm ${stage.textColor}`}>{stage.label}</span>
+                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full bg-white/50 ${stage.textColor}`}>
+                      {stagePosts.length}
+                    </span>
+                  </div>
+                  <span className={stage.textColor}>
+                    <ChevronIcon open={isOpen} />
+                  </span>
+                </button>
 
-                {stagePosts.length === 0 ? (
-                  <p className="px-4 py-3 text-sm text-muted-foreground">No posts in this stage</p>
-                ) : (
-                  <div className="divide-y">
-                    {stagePosts.map((post) => (
-                      <div key={post.id} className="px-4 py-3 flex items-center justify-between hover:bg-muted/40">
-                        <div className="min-w-0 flex-1">
-                          <Link
-                            href={`/posts/${post.id}`}
-                            className="font-medium text-sm hover:underline truncate block"
-                          >
-                            {post.title}
-                          </Link>
-                          <div className="flex items-center gap-2 mt-1">
-                            <span className="text-xs text-muted-foreground">{post.author_name}</span>
-                            <PostTypeBadge type={post.post_type} />
+                {/* Collapsible content */}
+                {isOpen && (
+                  stagePosts.length === 0 ? (
+                    <p className="px-4 py-3 text-sm text-muted-foreground">No posts in this stage</p>
+                  ) : (
+                    <div className="divide-y">
+                      {stagePosts.map((post) => (
+                        <div key={post.id} className="px-4 py-3 flex items-center justify-between hover:bg-muted/40 transition-colors">
+                          <div className="min-w-0 flex-1">
+                            <Link
+                              href={`/posts/${post.id}`}
+                              className="font-medium text-sm hover:underline truncate block"
+                            >
+                              {post.title}
+                            </Link>
+                            <div className="flex items-center gap-2 mt-1">
+                              <span className="text-xs text-muted-foreground">{post.author_name}</span>
+                              <PostTypeBadge type={post.post_type} />
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-3 ml-4 shrink-0">
+                            {post.scheduled_date && (
+                              <span className="text-xs text-muted-foreground">{post.scheduled_date}</span>
+                            )}
+                            <PostStatusBadge status={post.status} />
                           </div>
                         </div>
-                        <div className="flex items-center gap-3 ml-4 shrink-0">
-                          {post.scheduled_date && (
-                            <span className="text-xs text-muted-foreground">{post.scheduled_date}</span>
-                          )}
-                          <PostStatusBadge status={post.status} />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  )
                 )}
               </div>
             );
