@@ -2136,7 +2136,7 @@ const SUGGESTIONS: Array<{ icon: React.ReactNode; label: string; desc: string; t
     icon: <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>,
     label: "What's trending today",
     desc: "Live X/Twitter signals for B2B thought leaders",
-    text: "Show me 5 trending topics from X for LinkedIn content today",
+    text: "Show me 3 trending topics from X for LinkedIn content today",
   },
   {
     icon: <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>,
@@ -3311,11 +3311,10 @@ export default function AgentCatalogPage() {
     ]);
 
     try {
-      // 26s client timeout — leaves a 3s buffer below the 29s API Gateway hard limit.
-      // The route's internal x.ai timeout is 12s; even with a 10s Lambda cold start
-      // the route always responds in ≤23s, well under this limit.
+      // 15s client timeout — chat/completions + search_parameters returns in 3-8s.
+      // 15s gives ample headroom even on cold Lambda starts.
       const ctrl = new AbortController();
-      const tid  = setTimeout(() => ctrl.abort(), 26_000);
+      const tid  = setTimeout(() => ctrl.abort(), 15_000);
       // Only send the last batch (3) as exclude — sending all seen topics confuses
       // x.ai and breaks the loop. Client-side fuzzy dedup handles all historical repeats.
       const lastBatch = seenTopics.slice(-3);
@@ -3415,7 +3414,7 @@ export default function AgentCatalogPage() {
     } catch (err) {
       const isAbort = err instanceof Error && (err.name === "AbortError" || err.message.includes("abort"));
       const msg = isAbort
-        ? "Request timed out waiting for X trends. Please try again — it's usually faster on the second attempt."
+        ? "Fetching trends took longer than expected. Please try again."
         : "Couldn't connect to the trends service. Please try again or type your own topic.";
       setMessages((prev) => prev.map((m) =>
         m.id === agentId
@@ -3658,8 +3657,7 @@ export default function AgentCatalogPage() {
                     {/* Trend list — X source cards */}
                     {!msg.generating && msg.trendList && msg.trendList.length > 0 && (
                       <div className="space-y-2">
-                        {msg.trendList.map((t, i) => {
-                          const dc = DAY_CFG[t.day] ?? DAY_CFG.Monday;
+                        {msg.trendList.map((t, i) => {                          const dc = DAY_CFG[t.day] ?? DAY_CFG.Monday;
                           const initial = t.handle
                             ? t.handle.replace("@", "").charAt(0).toUpperCase()
                             : String(i + 1);
@@ -3748,6 +3746,18 @@ export default function AgentCatalogPage() {
                             </div>
                           );
                         })}
+
+                        {/* Load more button — visible after every trend batch */}
+                        {pendingQ?.type === "trend-topic-pick" &&
+                          msg.id === messages.filter((m) => m.trendList && m.trendList.length > 0).at(-1)?.id && (
+                          <button
+                            onClick={() => fetchAndShowTrends(3, pendingQ.seenTopics)}
+                            className="w-full mt-1 flex items-center justify-center gap-2 py-2.5 rounded-xl border border-border text-sm font-semibold text-muted-foreground hover:bg-accent hover:text-foreground hover:border-primary/40 transition-all"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.5"/></svg>
+                            Load 3 more topics
+                          </button>
+                        )}
                       </div>
                     )}
 
