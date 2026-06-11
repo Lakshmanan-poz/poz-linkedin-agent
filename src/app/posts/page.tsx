@@ -123,7 +123,7 @@ function KanbanCard({ post }: { post: Post }) {
         <PostStatusBadge status={post.status as PostStatus} />
         <div className="flex items-center justify-between mt-2.5 pt-2 border-t border-border/60">
           <span className="text-[10px] text-muted-foreground">
-            {TYPE_ICON[post.post_type]} {POST_TYPE_LABELS[post.post_type as PostType]}
+            {POST_TYPE_LABELS[post.post_type as PostType]}
           </span>
           <Avatar name={post.author_name} size={18} />
         </div>
