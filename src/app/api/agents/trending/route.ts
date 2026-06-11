@@ -31,14 +31,54 @@ function getDayConfig(dayParam?: string | null) {
 }
 
 // In-memory cache — survives across requests within the same Lambda container.
-// x.ai x_search takes 13-23s per call. Caching means only the first call per
-// Lambda lifetime is slow; all subsequent calls return instantly from memory.
 type CacheEntry = { trends: TrendItem[]; day: string; contentType: string; fetchedAt: number };
 const cache = new Map<string, CacheEntry>();
-const CACHE_TTL_MS = 20 * 60 * 1000; // 20 minutes
+const CACHE_TTL_MS = 20 * 60 * 1000;
 
-// Lambda + API Gateway hard limit is 29s
+// Lambda hard limit is 29s. chat/completions + search_parameters finishes in 3-8s.
 export const maxDuration = 30;
+
+// Single attempt using chat/completions + search_parameters (3-8s, not 13-23s like x_search tool)
+async function fetchOnce(
+  prompt: string,
+  since: string,
+  today: string,
+  xaiKey: string,
+  timeoutMs: number
+): Promise<string> {
+  const controller = new AbortController();
+  const tid = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch("https://api.x.ai/v1/chat/completions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${xaiKey}` },
+      body: JSON.stringify({
+        model: "grok-3",
+        messages: [{ role: "user", content: prompt }],
+        search_parameters: {
+          mode: "on",
+          sources: [{ type: "x" }],
+          max_search_results: 10,
+          from_date: since,
+          to_date: today,
+        },
+        stream: false,
+        temperature: 0.1,
+        max_tokens: 2000,
+      }),
+      signal: controller.signal,
+    });
+    clearTimeout(tid);
+    if (!res.ok) {
+      const body = await res.text().catch(() => "");
+      throw new Error(`HTTP ${res.status}: ${body}`);
+    }
+    const raw = await res.json();
+    return (raw.choices?.[0]?.message?.content as string) ?? "";
+  } finally {
+    clearTimeout(tid);
+  }
+}
 
 export async function GET(request: NextRequest) {
   const token = request.cookies.get(COOKIE_NAME)?.value;
@@ -57,17 +97,15 @@ export async function GET(request: NextRequest) {
   const since = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
   const today = new Date().toISOString().split("T")[0];
 
-  // "more" requests pass already-seen topic titles so x.ai finds different ones
-  const excludeParam = url.searchParams.get("exclude") ?? "";
+  const excludeParam  = url.searchParams.get("exclude") ?? "";
   const excludeTopics = excludeParam
     ? excludeParam.split("|||").map((t) => t.trim()).filter(Boolean)
     : [];
 
-  // Separate cache key for "more" batches so they don't collide with batch 1
   const batchKey = excludeTopics.length > 0 ? `-more${excludeTopics.length}` : "";
   const cacheKey = `${day.day}-${today}${batchKey}`;
 
-  // Return cached result if fresh (avoids re-running 24s x.ai call every request)
+  // Return cached result if fresh
   const cached = cache.get(cacheKey);
   if (cached && Date.now() - cached.fetchedAt < CACHE_TTL_MS) {
     return NextResponse.json({
@@ -91,8 +129,7 @@ Rules:
 - Highest likes + replies first
 - Real accounts: founders, executives, researchers, investors
 - Must include direct post URL with status ID
-${excludeLine}
-Return ONLY JSON, no markdown:
+${excludeLine}Return ONLY valid JSON, no markdown fences:
 {
   "trends": [
     {
@@ -106,125 +143,69 @@ Return ONLY JSON, no markdown:
   ]
 }`;
 
-  try {
-    const controller = new AbortController();
-    // x.ai x_search takes 13-23s regardless of model. Set 24s timeout so
-    // the route always returns a JSON response (not a hung connection) before
-    // the 26s client abort or the 29s API Gateway hard limit fires.
-    const timeoutId = setTimeout(() => controller.abort(), 24_000);
+  // Auto-retry: try twice with 12s each (total ≤ 24s, well within 30s Lambda limit).
+  // chat/completions + search_parameters typically finishes in 3-8s so the second
+  // attempt is almost never needed — but it means the user never sees a timeout error.
+  let text = "";
+  let lastErr = "";
 
-    const res = await fetch("https://api.x.ai/v1/responses", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${xaiKey}` },
-      body: JSON.stringify({
-        model: process.env.XAI_MODEL ?? "grok-4-fast-reasoning",
-        input: [{ role: "user", content: prompt }],
-        tools: [
-          {
-            type:      "x_search",
-            from_date: since,
-            to_date:   today,
-          },
-        ],
-        text:              { format: { type: "json_object" } },
-        temperature:       0.1,
-        max_output_tokens: 1500,
-      }),
-      signal: controller.signal,
-    });
-    clearTimeout(timeoutId);
-
-    if (!res.ok) {
-      const errBody = await res.text().catch(() => "");
-      return NextResponse.json(
-        { error: `X.ai error ${res.status}: ${errBody}`, trends: [] },
-        { status: 502 }
-      );
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    try {
+      text = await fetchOnce(prompt, since, today, xaiKey, 12_000);
+      if (text) break;
+    } catch (err) {
+      lastErr = err instanceof Error ? err.message : String(err);
     }
+  }
 
-    const raw = await res.json();
-
-    // /v1/responses returns output array; find the assistant message content
-    let text: string = typeof raw.output_text === "string" ? raw.output_text : "";
-    if (!text && Array.isArray(raw.output)) {
-      const parts: string[] = [];
-      for (const item of raw.output) {
-        if (Array.isArray(item?.content)) {
-          for (const c of item.content) {
-            if (typeof c?.text === "string") parts.push(c.text);
-          }
-        }
-      }
-      text = parts.join("");
-    }
-
-    // Normalise citations from annotations inside the message content
-    const postCitations: string[] = [];
-    if (Array.isArray(raw.output)) {
-      for (const item of raw.output) {
-        if (Array.isArray(item?.content)) {
-          for (const c of item.content) {
-            if (Array.isArray(c?.annotations)) {
-              for (const a of c.annotations) {
-                const u = typeof a?.url === "string" ? a.url : "";
-                if (/x\.com\/\w+\/status\/\d+/.test(u)) postCitations.push(u);
-              }
-            }
-          }
-        }
-      }
-    }
-
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      return NextResponse.json({ error: "No trending data returned. Try again.", trends: [] });
-    }
-
-    const parsed = JSON.parse(jsonMatch[0]) as {
-      trends: {
-        handle?: string; authority?: string; whatTheySaid?: string;
-        topic: string; post_url?: string; posted_at?: string;
-      }[];
-    };
-
-    const items = parsed.trends?.filter((t) => t.topic) ?? [];
-    if (items.length === 0) {
-      return NextResponse.json({ error: "No trending topics found. Try again in a moment.", trends: [] });
-    }
-
-    const trends: TrendItem[] = items.slice(0, count).map((t, i) => {
-      const handle = (t.handle ?? "").replace("@", "").toLowerCase();
-      let post_url = t.post_url ?? "";
-      if (!/x\.com\/\w+\/status\/\d+/.test(post_url)) {
-        const matched = postCitations.find((u) => u.toLowerCase().includes(`/${handle}/status/`));
-        post_url = matched ?? postCitations[i] ?? (handle ? `https://x.com/${handle}` : "");
-      }
-      return {
-        day:          day.day as TrendItem["day"],
-        type:         day.type,
-        topic:        t.topic,
-        summary:      "",
-        handle:       t.handle,
-        authority:    t.authority,
-        whatTheySaid: t.whatTheySaid,
-        post_url:     post_url || undefined,
-        posted_at:    t.posted_at,
-      };
-    });
-
-    // Populate cache so subsequent requests within this Lambda container are instant
-    cache.set(cacheKey, { trends, day: day.day, contentType: day.type, fetchedAt: Date.now() });
-
-    return NextResponse.json({ trends, day: day.day, contentType: day.type, source: "live" });
-
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    const isTimeout = msg.includes("abort") || msg.includes("timeout") || msg.includes("signal");
+  if (!text) {
     return NextResponse.json({
-      error: isTimeout
-        ? "X search timed out (x.ai x_search takes 13-23s). Please try again — second attempt is usually faster."
-        : `Failed: ${msg}`,
+      error: `Could not fetch trending data. Please try again. (${lastErr})`,
       trends: [],
     });
   }
+
+  // Extract any x.com URLs from the response text as citation backup
+  const urlMatches = text.match(/https?:\/\/x\.com\/\w+\/status\/\d+/g) ?? [];
+
+  const jsonMatch = text.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) {
+    return NextResponse.json({ error: "No trending data returned. Try again.", trends: [] });
+  }
+
+  let parsed: { trends: { handle?: string; authority?: string; whatTheySaid?: string; topic: string; post_url?: string; posted_at?: string }[] };
+  try {
+    parsed = JSON.parse(jsonMatch[0]);
+  } catch {
+    return NextResponse.json({ error: "Malformed response. Try again.", trends: [] });
+  }
+
+  const items = parsed.trends?.filter((t) => t.topic) ?? [];
+  if (items.length === 0) {
+    return NextResponse.json({ error: "No trending topics found. Try again in a moment.", trends: [] });
+  }
+
+  const trends: TrendItem[] = items.slice(0, count).map((t, i) => {
+    const handle = (t.handle ?? "").replace("@", "").toLowerCase();
+    let post_url = t.post_url ?? "";
+    if (!/x\.com\/\w+\/status\/\d+/.test(post_url)) {
+      const matched = urlMatches.find((u) => u.toLowerCase().includes(`/${handle}/status/`));
+      post_url = matched ?? urlMatches[i] ?? (handle ? `https://x.com/${handle}` : "");
+    }
+    return {
+      day:          day.day as TrendItem["day"],
+      type:         day.type,
+      topic:        t.topic,
+      summary:      "",
+      handle:       t.handle,
+      authority:    t.authority,
+      whatTheySaid: t.whatTheySaid,
+      post_url:     post_url || undefined,
+      posted_at:    t.posted_at,
+    };
+  });
+
+  cache.set(cacheKey, { trends, day: day.day, contentType: day.type, fetchedAt: Date.now() });
+
+  return NextResponse.json({ trends, day: day.day, contentType: day.type, source: "live" });
 }
