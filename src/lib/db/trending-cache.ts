@@ -48,12 +48,13 @@ export async function getFallbackTrends(
   excludeTopics: string[],
   limit: number
 ): Promise<TrendDbItem[]> {
-  const since = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
-  const { data, error } = await db()
+  // No time filter here — cleanup() removes rows older than 72h, so whatever
+  // is in the table is fresh enough. Removing the filter means the fallback
+  // always has data even if the cron missed a few cycles.
+  const { data, error } = await getDb()
     .from("trending_cache")
     .select("*")
     .eq("day", day)
-    .gt("stored_at", since)
     .order("stored_at", { ascending: false })
     .limit(60); // fetch plenty, filter in JS
 
