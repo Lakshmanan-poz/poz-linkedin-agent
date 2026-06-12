@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyToken, COOKIE_NAME } from "@/lib/auth";
-import { saveTrendingBatch, getFallbackTrends } from "@/lib/db/trending-cache";
 
 export const DAY_TYPES = [
   { day: "Monday",    type: "Thought Leadership", hint: "AI trends, business outcomes, leadership decisions, executive mindset" },
@@ -158,8 +157,6 @@ ${excludeLine}Return ONLY valid JSON, no markdown:
   ]
 }`;
 
-  // Try live grok API. Any failure (timeout, network, parse error) falls
-  // through to Supabase DB fallback so the user always sees topics.
   let liveTrends: TrendItem[] | null = null;
   try {
     const text = await fetchOnce(prompt, since, today, xaiKey, 27_000);
@@ -196,20 +193,11 @@ ${excludeLine}Return ONLY valid JSON, no markdown:
         }
       }
     }
-  } catch { /* timeout or network error — fall through to DB fallback */ }
+  } catch { /* timeout or network error */ }
 
   if (liveTrends && liveTrends.length > 0) {
-    // Cache in memory + save to DB so future failures can show these topics
     cache.set(cacheKey, { trends: liveTrends, day: day.day, contentType: day.type, fetchedAt: Date.now() });
-    saveTrendingBatch(liveTrends, day.day, day.type).catch(() => {});
     return NextResponse.json({ trends: liveTrends, day: day.day, contentType: day.type, source: "live" });
-  }
-
-  // Live API failed — serve from Supabase DB (built up by previous successful live fetches
-  // and the /api/agents/trending/refresh cron job). Excludes already-shown topics for variety.
-  const fallbackTrends = await getFallbackTrends(day.day, excludeTopics, count);
-  if (fallbackTrends.length > 0) {
-    return NextResponse.json({ trends: fallbackTrends, day: day.day, contentType: day.type, source: "fallback_db" });
   }
 
   return NextResponse.json({ error: "X trends are currently unavailable. Please try again in a moment.", trends: [] });
